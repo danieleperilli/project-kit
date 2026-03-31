@@ -1,6 +1,6 @@
 # Project Kit
 
-<img src="./assets/icon.svg" height="40" align="left" style="margin-right: 10px;" />
+<img src="./assets/icon.svg" height="60" align="left" style="margin-right: 10px;" />
 
 Project Kit is primarily a Codex skill for teams that want a disciplined, human-led `AI-assisted` workflow.
 It is intentionally not a `vibe-coding` starter: the main goal is to let you describe a project in simple language and have Codex turn that into durable repository context, while humans stay responsible for scope, architecture, and review.
@@ -114,17 +114,40 @@ Review the generated files immediately and remove placeholders or assumptions th
 Even when the skill is used correctly, these files need human editing.
 
 - `.project/context/overview.md`
-  This should become the real description of scope, core functionality, constraints, and non-goals.
+  Use this file as the product truth.
+  Write a short goal statement, define what is in scope and out of scope, list the few behaviors that are critical enough to deserve unit tests, and record the constraints that shape delivery.
+  Good content here is stable and product-facing.
+  Do not copy code structure, TODO lists, or speculative roadmap ideas into this file.
 - `.project/context/architecture.md`
-  This should describe the actual modules, boundaries, entry points, and integrations.
+  Use this file as the technical map of the repository.
+  Describe the main modules, execution entry points, trust boundaries, persistence layer, external integrations, and any architectural constraints that future changes must respect.
+  Keep it high signal: explain how the system is shaped, not every implementation detail.
 - `.project/CODE_STYLE.md`
-  Keep it only as a default. Tighten it or trim it based on the real repository tooling.
+  Treat this as a default policy, not as absolute truth.
+  Keep only the rules that are actually useful for this repository, align it with linting, formatting, and framework conventions, and delete rules that would create noise or conflict with real tooling.
+  If the repo already has strong config, this file should stay short.
 - `AGENTS.md`
-  Adjust agent instructions so they match the project’s real review and delivery rules.
+  Use this file to define how agents should work inside the repository.
+  Add the real read order, review expectations, trust boundaries, testing expectations, documentation rules, and anything agents must never do.
+  This is where you translate team process into actionable guardrails for AI-assisted work.
 - `.project/context/decisions.md`
-  Add durable decisions once they are real. Do not leave template placeholders as if they were decisions.
+  Use this as an append-only log of durable decisions.
+  Each entry should explain what was decided, why the decision was needed, and what tradeoffs or consequences it created.
+  Only record decisions that future contributors will need to understand later.
+  Do not leave placeholder headings or fake entries.
 - `.project/CHANGELOG.md`
-  Keep the initial scaffold entry, then update it only for meaningful changes.
+  Use this file to track meaningful repository changes.
+  Keep the initial scaffold entry, then add entries for changes that affect behavior, workflow, security, developer experience, or release history.
+  Avoid turning it into a commit log.
+
+In practice, the first pass should answer these questions:
+
+- What does this project actually do?
+- What must never break?
+- What are the main technical boundaries?
+- What rules should agents follow here?
+- Which decisions are important enough to preserve?
+- Which changes are important enough to announce?
 
 If these files stay generic, the repo will look organized but still behave like undocumented software.
 
