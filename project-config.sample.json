@@ -1,0 +1,11 @@
+{
+    "projectName": "project-kit",
+    "description": "Lean baseline for human-led, AI-assisted development",
+    "primaryLanguage": "TypeScript",
+    "stack": [
+        "TypeScript",
+        "React"
+    ],
+    "withSpecs": false,
+    "initGit": true
+}

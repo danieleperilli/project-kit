@@ -1,0 +1,17 @@
+{
+    "name": "project-kit",
+    "version": "0.1.0",
+    "description": "Human-led, AI-assisted project baseline scaffolding for Codex and disciplined repositories",
+    "license": "MIT",
+    "type": "commonjs",
+    "bin": {
+        "project-kit-scaffold": "./bin/project-kit-scaffold.js"
+    },
+    "scripts": {
+        "test": "node --experimental-strip-types --test tests/scaffold.test.ts",
+        "smoke": "node ./bin/project-kit-scaffold.js --help"
+    },
+    "engines": {
+        "node": ">=22"
+    }
+}

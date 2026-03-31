@@ -1,0 +1,8 @@
+interface:
+  display_name: "Project Kit"
+  short_description: "Create human-led, AI-assisted project baselines"
+  default_prompt: "Use $project-kit to bootstrap a new repository or align an existing one with a lean, human-led AI-assisted collaboration structure. Favor durable context, reviewable changes, and explicit ownership over vibe-coding. Read project-config.json automatically during init when it exists, ask for any remaining missing init metadata before scaffolding, do not ask for a project version during init, translate non-English file-facing content into English, and initialize Git only when explicitly requested and safe."
+  icon_large: "./assets/icon.svg"
+
+policy:
+  allow_implicit_invocation: true
