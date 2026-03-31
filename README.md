@@ -1,94 +1,143 @@
 # Project Kit
 
-<img src="./assets/icon.svg" height="40" align="left" alt="Project Kit icon" style="margin: 0 10px 0 0" />
+<img src="./assets/icon.svg" height="40" align="left" style="margin-right: 10px;" />
 
-Project Kit is a Codex skill and standalone scaffold for teams that want a disciplined, human-led `AI-assisted` development workflow.
-It is intentionally not a `vibe-coding` starter: the goal is to give agents enough durable context to help effectively while keeping scope, review, and architectural ownership in human hands.
+Project Kit is primarily a Codex skill for teams that want a disciplined, human-led `AI-assisted` workflow.
+It is intentionally not a `vibe-coding` starter: the main goal is to let you describe a project in simple language and have Codex turn that into durable repository context, while humans stay responsible for scope, architecture, and review.
 
-## Why it exists
+## Why the skill is the main path
 
-- Keep the baseline small and maintainable.
-- Prefer durable context over verbose documentation.
-- Reuse existing files instead of forcing a rigid layout.
-- Create specs only when ambiguity or risk justifies them.
-- Support AI-assisted delivery without normalizing unreviewed automation.
-
-## What it creates
-
-For new repositories, Project Kit scaffolds a lean baseline around:
+Using Project Kit as a skill is the recommended workflow because it adds guided reasoning before files are generated.
+You can describe goals, architecture, constraints, and stack in plain language, and Codex can turn that into:
 
 - `README.md`
 - `AGENTS.md`
-- `.project/CONTRIBUTING.md`
-- `.project/CHANGELOG.md`
 - `.project/CODE_STYLE.md`
 - `.project/context/overview.md`
 - `.project/context/architecture.md`
 - `.project/context/decisions.md`
-- `.gitignore`
-- `project-name.code-workspace`
-- `src/`
-- `tests/`
-- one manifest: `package.json`, `composer.json`, or `project.json`
-- `.project/specs/features/_template.md` only when requested
+- `.project/CONTRIBUTING.md`
+- `.project/CHANGELOG.md`
 
-When aligning an existing repository, the scaffold preserves the current layout and adds only the missing baseline files unless `--force` is used.
-Files like `.project/context/README.md` and `.project/specs/README.md` are intentionally excluded.
+The standalone scaffold script is still useful, but it is secondary.
+It creates the baseline quickly, then you still need to manually refine the generated files.
 
-## Requirements
+## Install As A Skill
 
-- Node.js 22 or higher
-- Git only if you want `--init-git`
-- Codex only if you want to use the skill directly from the app
-
-## Quickstart
-
-### Standalone CLI
-
-```bash
-node ./bin/project-kit-scaffold.js --help
-```
-
-Example:
-
-```bash
-node ./bin/project-kit-scaffold.js --mode init --target /absolute/path/to/repo --meta ./project-config.sample.json
-```
-
-If you prefer a global local link during development:
-
-```bash
-npm link
-project-kit-scaffold --help
-```
-
-### Codex skill
-
-If you want Codex to invoke the skill directly, symlink the repository into your Codex skills directory.
-
-Default `CODEX_HOME`:
-
-```bash
-mkdir -p "$HOME/.codex/skills"
-ln -s "/absolute/path/to/project-kit" "$HOME/.codex/skills/project-kit"
-```
-
-Custom `CODEX_HOME`:
+In this repository setup, the simplest installation path is to symlink Project Kit into your local Codex skills directory.
 
 ```bash
 mkdir -p "$CODEX_HOME/skills"
 ln -s "/absolute/path/to/project-kit" "$CODEX_HOME/skills/project-kit"
 ```
 
-Restart Codex after installation so it reloads the skill.
+> Default `CODEX_HOME`is `~/.codex` on macOS and Linux, but it may differ based on your installation or OS.
 
-## Operating modes
+After installation, restart Codex so the skill is discovered again.
 
-- `init`: bootstrap a new repository with the minimal durable baseline.
-- `align`: inspect an existing repository and add only the missing high-value files.
-- `harden`: review an existing repository to reduce doc sprawl and tighten context flow. This is part of the skill workflow, not a dedicated CLI mode yet.
+If your Codex installation uses different skill discovery paths or newer skill management features, use the official docs below as the source of truth.
 
-## Init metadata
+## Learn How Skills Work
+
+Read these first if you want to understand how Codex skills behave and where they fit:
+
+- [Agent Skills docs](https://developers.openai.com/codex/skills)
+- [Get started with Codex](https://openai.com/codex/get-started/)
+- [Using Codex with your ChatGPT plan](https://help.openai.com/en/articles/11369540)
+- [Introducing the Codex app](https://openai.com/index/introducing-the-codex-app/)
+- [This skill definition in `SKILL.md`](./SKILL.md)
+
+Why these links:
+
+- the Agent Skills docs explain what a skill is, how explicit and implicit invocation work, and how skills are structured;
+- the Codex getting started pages explain the product surfaces and setup flow;
+- the local `SKILL.md` explains the operating model specific to Project Kit.
+
+## Recommended Workflow
+
+Use Project Kit through Codex whenever you want the repository structure to come from a guided conversation rather than from raw file generation.
+
+### 1. Install the skill
+
+- Symlink the repository into your Codex skills directory.
+- Restart Codex.
+
+### 2. Open the target repository or empty project folder
+
+- Use an empty folder for a new project.
+- Use an existing repository when you want to align or harden it.
+
+### 3. Optionally prepare metadata
+
+- If you already know the basic project metadata, copy [project-config.sample.json](./project-config.sample.json) to `project-config.json`.
+- If you do not have it yet, describe the project in natural language directly to Codex.
+
+### 4. Ask Codex to use the skill explicitly
+
+Use prompts like:
+
+```text
+Use $project-kit to init a new TypeScript backend for a billing API.
+```
+
+```text
+Use $project-kit to align this existing React repository.
+```
+
+```text
+Use $project-kit to harden this repo and reduce documentation sprawl.
+```
+
+### 5. Describe the architecture in simple language
+
+This is the critical part.
+Tell Codex things like:
+
+- what the project does;
+- what is in scope and out of scope;
+- the main modules or services;
+- the integrations;
+- the constraints;
+- the stack;
+- what must be tested;
+- what the team wants agents to do or avoid.
+
+That plain-language description is what Project Kit turns into durable documentation.
+
+### 6. Review the generated baseline
+
+Project Kit can scaffold the structure, but it should not be treated as final truth.
+Review the generated files immediately and remove placeholders or assumptions that are not accurate.
+
+## Files You Must Review Manually
+
+Even when the skill is used correctly, these files need human editing.
+
+- `.project/context/overview.md`
+  This should become the real description of scope, core functionality, constraints, and non-goals.
+- `.project/context/architecture.md`
+  This should describe the actual modules, boundaries, entry points, and integrations.
+- `.project/CODE_STYLE.md`
+  Keep it only as a default. Tighten it or trim it based on the real repository tooling.
+- `AGENTS.md`
+  Adjust agent instructions so they match the project’s real review and delivery rules.
+- `.project/context/decisions.md`
+  Add durable decisions once they are real. Do not leave template placeholders as if they were decisions.
+- `.project/CHANGELOG.md`
+  Keep the initial scaffold entry, then update it only for meaningful changes.
+
+If these files stay generic, the repo will look organized but still behave like undocumented software.
+
+## Modes
+
+- `init`
+  Bootstrap a new repository with the minimal durable baseline.
+- `align`
+  Inspect an existing repository and add only the missing high-value files.
+- `harden`
+  Review an existing repository to reduce doc sprawl and tighten context flow. This is part of the skill workflow, not a dedicated CLI mode.
+
+## Init Metadata
 
 `init` expects this metadata shape:
 
@@ -113,7 +162,7 @@ Required fields:
 Optional fields:
 
 - `withSpecs` defaults to `false`
-- `initGit` defaults to `false` and initializes Git only for `init`, only when the target is not already inside a Git worktree
+- `initGit` defaults to `false`
 
 Version is not part of the `init` contract:
 
@@ -121,39 +170,21 @@ Version is not part of the `init` contract:
 - `align` reuses the version already present in the root manifest when available
 - `--project-version` is intentionally not supported
 
-If `--meta` is omitted and `project-config.json` exists in the current working directory, it is loaded automatically.
-If metadata is provided in a non-English language, the conversation may stay in that language, but generated repository content should still be written in English.
-Start from [project-config.sample.json](./project-config.sample.json) or copy it to `project-config.json` in the current working directory.
+## Alternative: Standalone Scaffold
 
-## CLI notes
+Use the standalone scaffold only when you want a fast file baseline without the conversational workflow.
 
-Use `project-kit-scaffold --help` for the full command reference.
-
-- `--with-specs` adds the optional feature spec template.
-- `--primary-language` helps select both `.project/CODE_STYLE.md` and the project manifest.
-- `--init-git` initializes Git only when requested and safe.
-- `--force` overwrites generated files that already exist.
-
-## Example output
-
-```text
-demo-repo/
-  .gitignore
-  README.md
-  AGENTS.md
-  package.json
-  demo-repo.code-workspace
-  src/
-  tests/
-  .project/
-    CONTRIBUTING.md
-    CHANGELOG.md
-    CODE_STYLE.md
-    context/
-      overview.md
-      architecture.md
-      decisions.md
+```bash
+node ./bin/project-kit-scaffold.js --mode init --target /absolute/path/to/repo --meta ./project-config.sample.json
 ```
+
+This path is useful when:
+
+- you already know the target structure;
+- you want to generate files quickly from metadata;
+- you are comfortable editing `.project/` manually afterward.
+
+This path is weaker than the skill workflow because the user still has to manually correct and complete the generated context.
 
 ## Development
 
@@ -168,8 +199,3 @@ The test suite covers the public CLI, automatic `project-config.json` loading, a
 - [Contributing](./CONTRIBUTING.md)
 - [Security](./SECURITY.md)
 - [License](./LICENSE)
-
-## Roadmap
-
-- Support other LLM providers and models.
-- Generate other language-specific code style guides like `python-style.md` or `ruby-style.md`.
