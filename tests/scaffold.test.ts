@@ -46,7 +46,9 @@ test("prints help output through the public CLI wrapper", async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Project Kit Scaffold/);
     assert.match(result.stdout, /--mode <init\|align>/);
+    assert.match(result.stdout, /--features <a,b,c>/);
     assert.match(result.stdout, /AI-assisted repository baseline/);
+    assert.doesNotMatch(result.stdout, /\bharden\b/);
 });
 
 test("loads project-config.json automatically during init", async (t) => {
@@ -62,7 +64,7 @@ test("loads project-config.json automatically during init", async (t) => {
         description: "Human-led AI-assisted demo",
         primaryLanguage: "TypeScript",
         stack: ["TypeScript", "React"],
-        withSpecs: false,
+        features: ["User authentication", "Usage reporting"],
         initGit: false
     }, null, 4));
 
@@ -73,13 +75,131 @@ test("loads project-config.json automatically during init", async (t) => {
     assert.equal(await pathExists(path.join(targetPath, "src")), true);
     assert.equal(await pathExists(path.join(targetPath, "tests")), true);
     assert.equal(await pathExists(path.join(targetPath, ".git")), false);
+    assert.equal(await pathExists(path.join(targetPath, ".project", "features.md")), true);
 
     const packageJson = JSON.parse(await fs.readFile(path.join(targetPath, "package.json"), "utf8")) as { name: string; version: string; };
     const readme = await fs.readFile(path.join(targetPath, "README.md"), "utf8");
+    const features = await fs.readFile(path.join(targetPath, ".project", "features.md"), "utf8");
 
     assert.equal(packageJson.name, "demo-kit");
     assert.equal(packageJson.version, "0.1.0");
     assert.match(readme, /AI-assisted workflow/);
+    assert.match(features, /## User authentication/);
+    assert.match(features, /## Usage reporting/);
+    assert.match(features, /- Summary:/);
+});
+
+test("init requires high-level features metadata", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+    const targetPath = path.join(tempDir, "missing-features");
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    const result = runScaffold([
+        "--mode",
+        "init",
+        "--target",
+        targetPath,
+        "--project-name",
+        "Missing Features",
+        "--description",
+        "Init without feature inventory",
+        "--primary-language",
+        "TypeScript",
+        "--stack",
+        "TypeScript,React"
+    ], repositoryRoot);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /--features/);
+});
+
+test("align requires high-level features when features.md is missing", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+    const targetPath = path.join(tempDir, "legacy-no-features");
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    await fs.mkdir(targetPath, { recursive: true });
+    await fs.writeFile(path.join(targetPath, "package.json"), `${JSON.stringify({
+        name: "legacy-no-features",
+        version: "1.0.0"
+    }, null, 4)}\n`);
+
+    const result = runScaffold([
+        "--mode",
+        "align",
+        "--target",
+        targetPath,
+        "--project-name",
+        "Legacy No Features",
+        "--description",
+        "Aligned without an existing features file",
+        "--primary-language",
+        "TypeScript",
+        "--stack",
+        "TypeScript,Express"
+    ], repositoryRoot);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Missing required align metadata/);
+    assert.match(result.stderr, /--features/);
+});
+
+test("align does not require features when features.md already exists", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+    const targetPath = path.join(tempDir, "legacy-with-features");
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    await fs.mkdir(path.join(targetPath, ".project"), { recursive: true });
+    await fs.writeFile(path.join(targetPath, ".project", "features.md"), "# Features\n");
+    await fs.writeFile(path.join(targetPath, "package.json"), `${JSON.stringify({
+        name: "legacy-with-features",
+        version: "1.0.0"
+    }, null, 4)}\n`);
+
+    const result = runScaffold([
+        "--mode",
+        "align",
+        "--target",
+        targetPath,
+        "--project-name",
+        "Legacy With Features",
+        "--description",
+        "Aligned with an existing features file",
+        "--primary-language",
+        "TypeScript",
+        "--stack",
+        "TypeScript,Express"
+    ], repositoryRoot);
+
+    assert.equal(result.status, 0, result.stderr);
+});
+
+test("align reports a missing target before requiring features", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+    const targetPath = path.join(tempDir, "missing-target");
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    const result = runScaffold([
+        "--mode",
+        "align",
+        "--target",
+        targetPath
+    ], repositoryRoot);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Target directory does not exist/);
 });
 
 test("align preserves existing repository layouts without forcing src or tests", async (t) => {
@@ -110,13 +230,15 @@ test("align preserves existing repository layouts without forcing src or tests",
         "--primary-language",
         "TypeScript",
         "--stack",
-        "TypeScript,Express"
+        "TypeScript,Express",
+        "--features",
+        "Legacy admin interface,Reporting exports"
     ], repositoryRoot);
 
     assert.equal(result.status, 0, result.stderr);
     assert.equal(await pathExists(path.join(targetPath, "src")), false);
     assert.equal(await pathExists(path.join(targetPath, "tests")), false);
-    assert.equal(await pathExists(path.join(targetPath, ".project", "CONTRIBUTING.md")), true);
+    assert.equal(await pathExists(path.join(targetPath, "CONTRIBUTING.md")), true);
 
     const packageJson = JSON.parse(await fs.readFile(path.join(targetPath, "package.json"), "utf8")) as { version: string; };
     const readme = await fs.readFile(path.join(targetPath, "README.md"), "utf8");

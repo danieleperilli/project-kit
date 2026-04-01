@@ -6,6 +6,9 @@
         "TypeScript",
         "React"
     ],
-    "withSpecs": false,
+    "features": [
+        "User authentication",
+        "Usage reporting"
+    ],
     "initGit": true
 }

@@ -10,7 +10,7 @@ interface IScaffoldOptions {
     primaryLanguage: string | null;
     projectVersion: string;
     stack: string[];
-    withSpecs: boolean;
+    features: string[];
     initGit: boolean;
     force: boolean;
 }
@@ -27,6 +27,7 @@ interface ITemplateVariables {
     manifestName: string;
     projectVersion: string;
     stackSummary: string;
+    featureSummary: string;
     directorySummary: string;
 }
 
@@ -46,7 +47,7 @@ interface IInitMetadata {
     description?: unknown;
     primaryLanguage?: unknown;
     stack?: unknown;
-    withSpecs?: unknown;
+    features?: unknown;
     initGit?: unknown;
 }
 
@@ -83,20 +84,21 @@ function buildHelpText(): string {
         "  --description <text>          Short human-facing project summary.",
         "  --primary-language <name>     Primary language used to select the manifest and style guide.",
         "  --stack <a,b,c>               Comma-separated stack summary.",
-        "  --with-specs                  Add the optional feature spec template.",
+        "  --features <a,b,c>            Comma-separated high-level project features.",
         "  --init-git                    Initialize Git when running init and the target is not already in a worktree.",
         "  --force                       Overwrite generated files that already exist.",
         "  --help, -h                    Show this message.",
         "",
         "Notes:",
-        "  - `init` requires project name, description, primary language, and stack.",
+        "  - `init` requires project name, description, primary language, stack, and high-level features.",
+        "  - `align` requires --features when `.project/features.md` does not already exist.",
         `  - If --meta is omitted, ${DEFAULT_PROJECT_CONFIG_FILE_NAME} is loaded automatically from the current working directory when present.`,
         "  - Existing files are preserved unless --force is used.",
-        "  - The scripted CLI supports `init` and `align`; `harden` is an agent-guided workflow.",
+        "  - The scripted CLI supports `init` and `align`.",
         "",
         "Examples:",
-        "  project-kit-scaffold --mode init --target /absolute/path/to/repo --meta ./project-config.sample.json",
-        "  project-kit-scaffold --mode align --target /absolute/path/to/existing-repo --project-name existing-repo --description \"Aligned for AI-assisted work\" --primary-language TypeScript --stack TypeScript,React"
+        "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-name demo --description \"AI-assisted demo\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting",
+        "  project-kit-scaffold --mode align --target /absolute/path/to/existing-repo --project-name existing-repo --description \"Aligned for AI-assisted work\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting"
     ].join("\n");
 }
 
@@ -150,32 +152,40 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
     const projectNameValue = values.get("project-name") ?? readStringMetadata(metadata.projectName);
     const descriptionValue = values.get("description") ?? readStringMetadata(metadata.description);
     const primaryLanguage = values.get("primary-language") ?? values.get("language") ?? readStringMetadata(metadata.primaryLanguage) ?? null;
-    const stack = values.has("stack") ? parseList(values.get("stack")) : parseMetadataStack(metadata.stack);
+    const stack = values.has("stack") ? parseList(values.get("stack")) : parseMetadataList(metadata.stack);
+    const features = values.has("features") ? parseList(values.get("features")) : parseMetadataList(metadata.features);
     const projectVersion = await resolveProjectVersion(mode, target);
+    const targetExists = await pathExists(target);
+    const featuresPath = path.join(target, ".project", "features.md");
+    const requiresFeatures = mode === "init" || (mode === "align" && targetExists && !(await pathExists(featuresPath)));
 
     validateProjectVersion(projectVersion);
 
-    if (mode === "init") {
+    if (mode === "init" || mode === "align") {
         const missingArguments: string[] = [];
 
-        if (!projectNameValue) {
+        if (mode === "init" && !projectNameValue) {
             missingArguments.push("--project-name");
         }
 
-        if (!descriptionValue) {
+        if (mode === "init" && !descriptionValue) {
             missingArguments.push("--description");
         }
 
-        if (!primaryLanguage) {
+        if (mode === "init" && !primaryLanguage) {
             missingArguments.push("--primary-language");
         }
 
-        if (stack.length === 0) {
+        if (mode === "init" && stack.length === 0) {
             missingArguments.push("--stack");
         }
 
+        if (requiresFeatures && features.length === 0) {
+            missingArguments.push("--features");
+        }
+
         if (missingArguments.length > 0) {
-            throw new Error(`Missing required init metadata: ${missingArguments.join(", ")}.`);
+            throw new Error(`Missing required ${mode} metadata: ${missingArguments.join(", ")}.`);
         }
     }
 
@@ -190,7 +200,7 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
         primaryLanguage,
         projectVersion,
         stack,
-        withSpecs: flags.has("with-specs") || metadata.withSpecs === true,
+        features,
         initGit: flags.has("init-git") || metadata.initGit === true,
         force: flags.has("force")
     };
@@ -260,10 +270,10 @@ function readStringMetadata(value: unknown): string | undefined {
 }
 
 /**
- * Parse the stack value from the metadata file.
+ * Parse a string list from a metadata value.
  * @param {unknown} value
  */
-function parseMetadataStack(value: unknown): string[] {
+function parseMetadataList(value: unknown): string[] {
     if (Array.isArray(value)) {
         return value
             .filter((entry): entry is string => typeof entry === "string")
@@ -434,9 +444,8 @@ async function ensureBaselineDirectories(options: IScaffoldOptions): Promise<voi
 
 /**
  * Build the template file list for the current run.
- * @param {IScaffoldOptions} options
  */
-function buildTemplateFiles(options: IScaffoldOptions): ITemplateFile[] {
+function buildTemplateFiles(): ITemplateFile[] {
     const files: ITemplateFile[] = [
         {
             templatePath: path.join("templates", "base", ".gitignore"),
@@ -447,37 +456,34 @@ function buildTemplateFiles(options: IScaffoldOptions): ITemplateFile[] {
             outputPath: "README.md"
         },
         {
-            templatePath: path.join("templates", "base", ".project", "CONTRIBUTING.md"),
-            outputPath: path.join(".project", "CONTRIBUTING.md")
+            templatePath: path.join("templates", "base", "CONTRIBUTING.md"),
+            outputPath: "CONTRIBUTING.md"
         },
         {
-            templatePath: path.join("templates", "base", ".project", "CHANGELOG.md"),
-            outputPath: path.join(".project", "CHANGELOG.md")
+            templatePath: path.join("templates", "base", "CHANGELOG.md"),
+            outputPath: "CHANGELOG.md"
         },
         {
             templatePath: path.join("templates", "base", "AGENTS.md"),
             outputPath: "AGENTS.md"
         },
         {
-            templatePath: path.join("templates", "base", ".project", "context", "overview.md"),
-            outputPath: path.join(".project", "context", "overview.md")
+            templatePath: path.join("templates", "base", ".project", "overview.md"),
+            outputPath: path.join(".project", "overview.md")
         },
         {
-            templatePath: path.join("templates", "base", ".project", "context", "architecture.md"),
-            outputPath: path.join(".project", "context", "architecture.md")
+            templatePath: path.join("templates", "base", ".project", "features.md"),
+            outputPath: path.join(".project", "features.md")
         },
         {
-            templatePath: path.join("templates", "base", ".project", "context", "decisions.md"),
-            outputPath: path.join(".project", "context", "decisions.md")
+            templatePath: path.join("templates", "base", ".project", "architecture.md"),
+            outputPath: path.join(".project", "architecture.md")
+        },
+        {
+            templatePath: path.join("templates", "base", ".project", "decisions.md"),
+            outputPath: path.join(".project", "decisions.md")
         }
     ];
-
-    if (options.withSpecs) {
-        files.push({
-            templatePath: path.join("templates", "base", ".project", "specs", "features", "_template.md"),
-            outputPath: path.join(".project", "specs", "features", "_template.md")
-        });
-    }
 
     return files;
 }
@@ -584,8 +590,7 @@ async function listTopLevelDirectories(targetDir: string): Promise<string[]> {
         ".git",
         ".github",
         ".project",
-        "node_modules",
-        "specs"
+        "node_modules"
     ]);
 
     const entries = await fs.readdir(targetDir, { withFileTypes: true });
@@ -606,6 +611,30 @@ function buildStackSummary(stack: string[]): string {
     }
 
     return stack.map((entry) => `- ${entry}`).join("\n");
+}
+
+/**
+ * Render a human-readable feature summary.
+ * @param {string[]} features
+ */
+function buildFeatureSummary(features: string[]): string {
+    if (features.length === 0) {
+        return [
+            "## Feature Name",
+            "",
+            "- Summary:",
+            "- In scope:",
+            "- Out of scope:"
+        ].join("\n");
+    }
+
+    return features.map((entry) => [
+        `## ${entry}`,
+        "",
+        "- Summary:",
+        "- In scope:",
+        "- Out of scope:"
+    ].join("\n")).join("\n\n");
 }
 
 /**
@@ -633,6 +662,7 @@ function renderTemplate(template: string, variables: ITemplateVariables): string
         .replaceAll("{{manifestName}}", variables.manifestName)
         .replaceAll("{{projectVersion}}", variables.projectVersion)
         .replaceAll("{{stackSummary}}", variables.stackSummary)
+        .replaceAll("{{featureSummary}}", variables.featureSummary)
         .replaceAll("{{directorySummary}}", variables.directorySummary);
 }
 
@@ -663,7 +693,7 @@ async function writeTemplate(templateRoot: string, targetRoot: string, file: ITe
 }
 
 /**
- * Compose the final .project/CODE_STYLE.md content from detected language guides or the generic fallback.
+ * Compose the final CODE_STYLE.md content from detected language guides or the generic fallback.
  * @param {IStyleGuideDefinition[]} styleGuides
  * @param {string[]} sections
  */
@@ -698,14 +728,14 @@ function buildCodeStyleDocument(styleGuides: IStyleGuideDefinition[], sections: 
 }
 
 /**
- * Write .project/CODE_STYLE.md unless an existing file should be preserved.
+ * Write CODE_STYLE.md unless an existing file should be preserved.
  * @param {string} skillRoot
  * @param {string} targetRoot
  * @param {IStyleGuideDefinition[]} styleGuides
  * @param {boolean} force
  */
 async function writeCodeStyle(skillRoot: string, targetRoot: string, styleGuides: IStyleGuideDefinition[], force: boolean): Promise<boolean> {
-    const targetPath = path.join(targetRoot, ".project", "CODE_STYLE.md");
+    const targetPath = path.join(targetRoot, "CODE_STYLE.md");
     const targetExists = await pathExists(targetPath);
 
     if (targetExists && !force) {
@@ -854,6 +884,7 @@ async function buildTemplateVariables(options: IScaffoldOptions): Promise<ITempl
         manifestName: buildManifestName(options.projectName),
         projectVersion: options.projectVersion,
         stackSummary: buildStackSummary(options.stack),
+        featureSummary: buildFeatureSummary(options.features),
         directorySummary: buildDirectorySummary(directories)
     };
 }
@@ -877,7 +908,7 @@ async function main(): Promise<void> {
 
     const skillRoot = path.resolve(__dirname, "..");
     const variables = await buildTemplateVariables(options);
-    const templateFiles = buildTemplateFiles(options);
+    const templateFiles = buildTemplateFiles();
     const styleGuides = detectStyleGuides(options.primaryLanguage, options.stack);
     const manifestDefinition = resolveManifest(options.primaryLanguage, options.stack);
     let writtenFiles = 0;

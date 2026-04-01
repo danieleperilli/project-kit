@@ -1,6 +1,6 @@
 ---
 name: project-kit
-description: Create a new project baseline or align an existing repository for a human-led, AI-assisted workflow with minimal durable documentation, lean agent instructions, and specs only when ambiguity justifies them.
+description: Create a new project baseline or align an existing repository for a human-led, AI-assisted workflow with minimal durable documentation, lean agent instructions, and a required dedicated features document.
 ---
 
 # Project Kit
@@ -11,7 +11,7 @@ Use this skill when the user wants to:
 - improve an existing repository so agents can work with better context;
 - reduce documentation sprawl while keeping durable project understanding;
 - favor an AI-assisted engineering workflow with explicit review and ownership instead of vibe-coding;
-- create specs only for risky or ambiguous work, not as default bureaucracy.
+- require a dedicated project features document as the single product-facing source of truth for features.
 
 ## Mission
 
@@ -27,9 +27,6 @@ Create a new baseline for a repository that does not yet have durable project gu
 2. `align`
 Inspect an existing repository and add only the missing files that improve agent collaboration.
 
-3. `harden`
-Reduce redundant docs, merge overlapping files, and simplify the information flow.
-
 ## Core Rules
 
 - Prefer updating existing files over creating new ones.
@@ -39,21 +36,23 @@ Reduce redundant docs, merge overlapping files, and simplify the information flo
   - `project-name.code-workspace`
   - `README.md`
   - `AGENTS.md`
-  - `.project/CONTRIBUTING.md`
-  - `.project/CHANGELOG.md`
-  - `.project/CODE_STYLE.md`
-  - `.project/context/overview.md`
-  - `.project/context/architecture.md`
-  - `.project/context/decisions.md`
+  - `CONTRIBUTING.md`
+  - `CHANGELOG.md`
+  - `CODE_STYLE.md`
+  - `.project/overview.md`
+  - `.project/features.md`
+  - `.project/architecture.md`
+  - `.project/decisions.md`
   - one project manifest
-- Build `.project/CODE_STYLE.md` from the internal `code-style/` defaults for the languages that are actually used by the repository.
-- If no supported language-specific guide applies, create `.project/CODE_STYLE.md` from the generic fallback and let the user refine it later.
+- Build `CODE_STYLE.md` from the internal `code-style/` defaults for the languages that are actually used by the repository.
+- If no supported language-specific guide applies, create `CODE_STYLE.md` from the generic fallback and let the user refine it later.
 - Always create one manifest that stores the project name and Semantic Version:
   - `package.json` for TypeScript or Node.js
   - `composer.json` for PHP
   - `project.json` as a generic fallback
-- Add `.project/specs/features/*.md` only when the feature is ambiguous, risky, or needs explicit review.
-- Do not create `.project/context/README.md` or `.project/specs/README.md` unless the user explicitly asks for them.
+- Always capture stable project features in `.project/features.md`.
+- Never duplicate interfaces, schemas, routes, or other code contracts inside `.project/features.md`.
+- Do not create `.project/README.md` unless the user explicitly asks for it.
 - Avoid placeholder noise. Prompts like "Describe the goal" are acceptable; `TODO` filler is not.
 - Repository configuration overrides project style guides. Treat project style files as defaults, not as higher-precedence truth.
 
@@ -69,7 +68,7 @@ For `init`, expect this metadata:
   "description": "Lean baseline for AI-assisted development",
   "primaryLanguage": "TypeScript",
   "stack": ["TypeScript", "React"],
-  "withSpecs": false,
+  "features": ["User authentication", "Usage reporting"],
   "initGit": true
 }
 ```
@@ -80,10 +79,10 @@ Required fields:
 - `description`
 - `primaryLanguage`
 - `stack`
+- `features`
 
 Optional fields:
 
-- `withSpecs` defaults to `false`
 - `initGit` defaults to `false`
 
 Version is not part of the `init` metadata contract:
@@ -95,6 +94,7 @@ Version is not part of the `init` metadata contract:
 If `project-config.json` exists in the current working directory, use it as the default metadata source for `init`.
 If the user asks for `init` without enough metadata after reading `project-config.json`, ask for the missing required fields before generating files.
 If the user does not provide `initGit`, ask whether Git should be initialized.
+For `align`, reuse `.project/features.md` when it already captures the feature inventory. If it does not exist yet, ask the user for the missing high-level features before scaffolding.
 If the user provides metadata values in non-English, keep the conversation in the user's language but translate all file-facing text to English before scaffolding.
 The scaffold can read the metadata from `project-config.json`, from `project-config.sample.json`, or from any JSON file passed with `--meta`.
 
@@ -119,17 +119,14 @@ tests/
 project-name.code-workspace
 README.md
 AGENTS.md
+CONTRIBUTING.md
+CHANGELOG.md
+CODE_STYLE.md
 .project/
-  CONTRIBUTING.md
-  CHANGELOG.md
-  CODE_STYLE.md
-  context/
-    overview.md
-    architecture.md
-    decisions.md
-  specs/
-    features/
-      _template.md   # optional helper, not mandatory in every repo
+  overview.md
+  features.md
+  architecture.md
+  decisions.md
 package.json | composer.json | project.json
 ```
 
@@ -147,18 +144,18 @@ package.json | composer.json | project.json
   Minimal VS Code workspace file pointing to the repository root.
 - `AGENTS.md`
   Working rules for agents: how to read the repository, how to update context, and what not to do.
-- `.project/CODE_STYLE.md`
+- `CODE_STYLE.md`
   Repository-level coding defaults composed from one or more internal language guides, or from a generic fallback when no dedicated guide exists.
 - project manifest
   Store the project name and version in the stack-native manifest, or in `project.json` when no native manifest is supported.
-- `.project/context/overview.md`
+- `.project/overview.md`
   Durable understanding of goals, scope, constraints, and non-goals.
-- `.project/context/architecture.md`
+- `.project/features.md`
+  Stable product-facing feature inventory with summary, in-scope boundaries, and explicit out-of-scope notes.
+- `.project/architecture.md`
   Durable technical shape: entry points, components, integrations, and stack choices.
-- `.project/context/decisions.md`
+- `.project/decisions.md`
   Append-only record of relevant technical or workflow decisions.
-- `.project/specs/features/*.md`
-  Temporary or semi-durable design artifacts for ambiguous changes.
 
 ### 4. Preserve human ownership
 
@@ -168,7 +165,7 @@ The skill must improve collaboration, not replace product or engineering judgmen
 - Do not create fictional modules or directory trees.
 - Do not hardcode a process heavier than the team needs.
 - Prefer concise, auditable updates that a human can review quickly.
-- Keep `.project/CHANGELOG.md` updated for meaningful changes, including a `Codex Log` trail when version bumps are not yet appropriate.
+- Keep `CHANGELOG.md` updated for meaningful changes, including a `Codex Log` trail when version bumps are not yet appropriate.
 - Keep repository-facing prose in English even when the user supplied the source information in another language.
 
 ## Scripted Scaffolding
@@ -181,7 +178,7 @@ node --experimental-strip-types scripts/scaffold.ts ...
 
 Use the script to create the lean baseline consistently, then refine file contents based on the actual repository context.
 For `init`, the script accepts `--meta /path/to/file.json`; if `--meta` is omitted, it automatically reads `project-config.json` from the current working directory when present. CLI flags override JSON values when both are present.
-The scripted CLI covers `init` and `align`. `harden` remains an agent-guided review mode rather than a dedicated CLI command.
+The scripted CLI covers `init` and `align`.
 
 ## Output Standard
 
