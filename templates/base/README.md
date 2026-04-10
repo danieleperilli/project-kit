@@ -8,6 +8,7 @@
 - Agents help with implementation and repository understanding.
 - This baseline is designed for an AI-assisted workflow with reviewable context, not for unreviewed vibe-coding.
 - Durable context lives in `.project/overview.md`, `.project/features.md`, `.project/architecture.md`, and `.project/decisions.md`.
+- When the project includes UI mockups or design links, keep them in `.project/design/` and prefer paired assets such as `screen.png` plus `screen.annotated.png`.
 - Coding conventions live in `CODE_STYLE.md`.
 - Project name and version live in the project manifest.
 - New repositories use `src/` for application code and `tests/` for automated tests by default.

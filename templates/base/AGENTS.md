@@ -10,6 +10,7 @@
 6. `.project/features.md`
 7. `.project/architecture.md`
 8. `.project/decisions.md`
+9. `.project/design/README.md` if present
 
 ## Language Policy (Mandatory)
 
@@ -96,8 +97,12 @@ Do not skip the reviewer phase for complex changes.
 - Prefer updating existing files over creating new ones.
 - Do not duplicate code contracts or directory listings in docs.
 - Treat `.project/features.md` as the required source of truth for the project feature inventory.
+- If `.project/design/` exists, treat it as the source of truth for design references and UI annotations.
 - Update `.project/features.md` when stable feature scope changes.
 - Never duplicate interfaces, schemas, routes, or other code contracts inside `.project/features.md`.
+- When `.project/design/assets/` exists, scan for `name.ext` and `name.annotated.ext` pairs using `.png`, `.jpg`, `.jpeg`, `.svg`, or `.webp`.
+- Treat `.annotated` files as explanatory overlays, not as product UI.
+- Do not infer screen-to-screen flows from static mockups when the evidence is ambiguous; record assumptions explicitly in `.project/design/README.md` or surface them in chat.
 - Append a dated note to `.project/decisions.md` when a technical or workflow decision becomes durable.
 - Add a changelog entry for every meaningful change.
 - Use `Unreleased > Codex Log` for agent-maintained notes when the work should be tracked but does not justify a version bump yet.

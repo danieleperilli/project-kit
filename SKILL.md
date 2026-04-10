@@ -12,6 +12,7 @@ Use this skill when the user wants to:
 - reduce documentation sprawl while keeping durable project understanding;
 - favor an AI-assisted engineering workflow with explicit review and ownership instead of vibe-coding;
 - require a dedicated project features document as the single product-facing source of truth for features.
+- support optional design references when the user provides UI mockups, exported screens, annotated screenshots, or Figma links.
 
 ## Mission
 
@@ -43,6 +44,7 @@ Inspect an existing repository and add only the missing files that improve agent
   - `.project/features.md`
   - `.project/architecture.md`
   - `.project/decisions.md`
+  - optional `.project/design/` for UI mockups, annotated asset pairs, and optional source links
   - one project manifest
 - Build `CODE_STYLE.md` from the internal `code-style/` defaults for the languages that are actually used by the repository.
 - If no supported language-specific guide applies, create `CODE_STYLE.md` from the generic fallback and let the user refine it later.
@@ -69,6 +71,7 @@ For `init`, expect this metadata:
   "primaryLanguage": "TypeScript",
   "stack": ["TypeScript", "React"],
   "features": ["User authentication", "Usage reporting"],
+  "designContext": true,
   "initGit": true
 }
 ```
@@ -84,6 +87,7 @@ Required fields:
 Optional fields:
 
 - `initGit` defaults to `false`
+- `designContext` defaults to `false`
 
 Version is not part of the `init` metadata contract:
 
@@ -127,8 +131,13 @@ CODE_STYLE.md
   features.md
   architecture.md
   decisions.md
+  design/
+    README.md
+    assets/
 package.json | composer.json | project.json
 ```
+
+Only add `.project/design/` when the repository has user-facing UI, the user provides mockups, or design references are needed to implement or review screens safely.
 
 ### 3. Keep each file narrow
 
@@ -156,6 +165,29 @@ package.json | composer.json | project.json
   Durable technical shape: entry points, components, integrations, and stack choices.
 - `.project/decisions.md`
   Append-only record of relevant technical or workflow decisions.
+- `.project/design/README.md`
+  Optional conventions and discovery rules for exported mockups, annotated screenshots, and canonical design links such as Figma frames or nodes.
+
+### UI and design context
+
+When the user provides mockups, screenshots, exports, or Figma links:
+
+- create `.project/design/` only if it adds real value;
+- store local exports under `.project/design/assets/`;
+- use paired assets as the default convention:
+  - `screen-name.png`
+  - `screen-name.annotated.png`
+  - the same rule applies to `.jpg`, `.jpeg`, `.svg`, and `.webp`
+- treat `.annotated` files as documentation overlays, not as final UI;
+- scan the design asset directory recursively and pair files by the same base name plus the `.annotated` suffix;
+- prefer exact extension matches when pairing;
+- prefer very bright annotation colors such as `#FF0095` so notes are easy to distinguish from the real interface;
+- record canonical remote links in `.project/design/README.md` only when they add value;
+- if cross-screen navigation or state transitions are still ambiguous, write a short note directly in `.project/design/README.md` or ask for clarification.
+
+Codex can infer local control meaning from annotated screenshots very well when arrows and labels clearly point to one element.
+Codex should not treat static exports alone as authoritative proof of cross-screen flow.
+If multiple interpretations are plausible, ask for confirmation or write the assumption down with a confidence note.
 
 ### 4. Preserve human ownership
 
@@ -179,6 +211,7 @@ node --experimental-strip-types scripts/scaffold.ts ...
 Use the script to create the lean baseline consistently, then refine file contents based on the actual repository context.
 For `init`, the script accepts `--meta /path/to/file.json`; if `--meta` is omitted, it automatically reads `project-config.json` from the current working directory when present. CLI flags override JSON values when both are present.
 The scripted CLI covers `init` and `align`.
+Use `--design-context` or `"designContext": true` when the baseline should include the optional UI design workspace.
 
 ## Output Standard
 
@@ -187,4 +220,5 @@ When you use this skill:
 - explain why each created file exists;
 - keep the file count low;
 - mention any files you intentionally did not create;
+- if `.project/design/` is created, explain which annotated asset pairs were detected and whether any cross-screen relationships still need explicit notes;
 - if the existing repository already has a good equivalent, reuse it instead of forcing the baseline above.

@@ -20,6 +20,7 @@ You can describe goals, features, architecture, constraints, and stack in plain 
 - `.project/features.md`
 - `.project/architecture.md`
 - `.project/decisions.md`
+- optional `.project/design/README.md`
 
 The standalone scaffold script is still useful, but it is secondary.
 It creates the baseline quickly, then you still need to manually refine the generated files.
@@ -72,6 +73,7 @@ Use Project Kit through Codex whenever you want the repository structure to come
 ### 3. Optionally prepare metadata
 
 - If you already know the basic project metadata, copy [project-config.sample.json](./project-config.sample.json) to `project-config.json`.
+- If the repository includes user-facing UI, add `"designContext": true` so the scaffold also creates a place for mockups, annotated asset pairs, and optional design links.
 - If you do not have it yet, describe the project in natural language directly to Codex.
 
 ### 4. Ask Codex to use the skill explicitly
@@ -84,6 +86,10 @@ Use $project-kit to init a new TypeScript backend for a billing API.
 
 ```text
 Use $project-kit to align this existing React repository.
+```
+
+```text
+Use $project-kit to align this existing React repository and include design context for Figma mockups.
 ```
 
 ### 5. Describe the architecture in simple language
@@ -99,6 +105,8 @@ Tell Codex things like:
 - the constraints;
 - the stack;
 - what must be tested;
+- whether there are exported screens, screenshots, Figma files, or prototype links;
+- whether annotated mockups follow a `name.ext` + `name.annotated.ext` convention;
 - what the team wants agents to do or avoid.
 
 That plain-language description is what Project Kit turns into durable documentation.
@@ -147,6 +155,12 @@ Even when the skill is used correctly, these files need human editing.
   Only record decisions that future contributors will need to understand later.
   Do not leave placeholder headings or fake entries.
 
+- `.project/design/README.md`
+  Use this file only when the repository has user-facing UI or the user provides mockups.
+  Use it to document the asset-pair convention and optional external design links.
+  The default convention is `name.ext` plus `name.annotated.ext`, where the `.annotated` file contains arrows, notes, or labels that are not part of the final UI.
+  Codex can infer local control meaning well from annotated pairs, but multi-screen flows still need explicit notes when they are not obvious.
+
 ## Modes
 
 - `init`
@@ -166,6 +180,7 @@ Even when the skill is used correctly, these files need human editing.
     "primaryLanguage": "TypeScript",
     "stack": ["TypeScript", "React"],
     "features": ["User authentication", "Usage reporting"],
+    "designContext": true,
     "initGit": true
 }
 ```
@@ -180,6 +195,7 @@ Required fields:
 
 Optional fields:
 
+- `designContext` defaults to `false`
 - `initGit` defaults to `false`
 
 Version is not part of the `init` contract:
@@ -195,6 +211,9 @@ Use the standalone scaffold only when you want a fast file baseline without the 
 ```bash
 node ./bin/project-kit-scaffold.js --mode init --target /absolute/path/to/repo --meta ./project-config.sample.json
 ```
+
+For UI-heavy projects, add `--design-context` to scaffold `.project/design/` as well.
+The lightweight convention is to store paired assets like `editor.png` and `editor.annotated.png`.
 
 This path is useful when:
 

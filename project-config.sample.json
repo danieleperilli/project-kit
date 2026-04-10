@@ -10,5 +10,6 @@
         "User authentication",
         "Usage reporting"
     ],
+    "designContext": false,
     "initGit": true
 }

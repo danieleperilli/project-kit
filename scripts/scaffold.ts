@@ -11,6 +11,7 @@ interface IScaffoldOptions {
     projectVersion: string;
     stack: string[];
     features: string[];
+    designContext: boolean;
     initGit: boolean;
     force: boolean;
 }
@@ -48,6 +49,7 @@ interface IInitMetadata {
     primaryLanguage?: unknown;
     stack?: unknown;
     features?: unknown;
+    designContext?: unknown;
     initGit?: unknown;
 }
 
@@ -85,6 +87,7 @@ function buildHelpText(): string {
         "  --primary-language <name>     Primary language used to select the manifest and style guide.",
         "  --stack <a,b,c>               Comma-separated stack summary.",
         "  --features <a,b,c>            Comma-separated high-level project features.",
+        "  --design-context              Scaffold optional design references for UI mockups, links, and annotations.",
         "  --init-git                    Initialize Git when running init and the target is not already in a worktree.",
         "  --force                       Overwrite generated files that already exist.",
         "  --help, -h                    Show this message.",
@@ -98,6 +101,7 @@ function buildHelpText(): string {
         "",
         "Examples:",
         "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-name demo --description \"AI-assisted demo\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting",
+        "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-name demo-ui --description \"AI-assisted UI demo\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting --design-context",
         "  project-kit-scaffold --mode align --target /absolute/path/to/existing-repo --project-name existing-repo --description \"Aligned for AI-assisted work\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting"
     ].join("\n");
 }
@@ -201,6 +205,7 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
         projectVersion,
         stack,
         features,
+        designContext: flags.has("design-context") || metadata.designContext === true,
         initGit: flags.has("init-git") || metadata.initGit === true,
         force: flags.has("force")
     };
@@ -444,8 +449,9 @@ async function ensureBaselineDirectories(options: IScaffoldOptions): Promise<voi
 
 /**
  * Build the template file list for the current run.
+ * @param {IScaffoldOptions} options
  */
-function buildTemplateFiles(): ITemplateFile[] {
+function buildTemplateFiles(options: IScaffoldOptions): ITemplateFile[] {
     const files: ITemplateFile[] = [
         {
             templatePath: path.join("templates", "base", ".gitignore"),
@@ -484,6 +490,19 @@ function buildTemplateFiles(): ITemplateFile[] {
             outputPath: path.join(".project", "decisions.md")
         }
     ];
+
+    if (options.designContext) {
+        files.push(
+            {
+                templatePath: path.join("templates", "base", ".project", "design", "README.md"),
+                outputPath: path.join(".project", "design", "README.md")
+            },
+            {
+                templatePath: path.join("templates", "base", ".project", "design", "assets", ".gitkeep"),
+                outputPath: path.join(".project", "design", "assets", ".gitkeep")
+            }
+        );
+    }
 
     return files;
 }
@@ -908,7 +927,7 @@ async function main(): Promise<void> {
 
     const skillRoot = path.resolve(__dirname, "..");
     const variables = await buildTemplateVariables(options);
-    const templateFiles = buildTemplateFiles();
+    const templateFiles = buildTemplateFiles(options);
     const styleGuides = detectStyleGuides(options.primaryLanguage, options.stack);
     const manifestDefinition = resolveManifest(options.primaryLanguage, options.stack);
     let writtenFiles = 0;

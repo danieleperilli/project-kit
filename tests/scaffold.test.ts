@@ -47,6 +47,7 @@ test("prints help output through the public CLI wrapper", async () => {
     assert.match(result.stdout, /Project Kit Scaffold/);
     assert.match(result.stdout, /--mode <init\|align>/);
     assert.match(result.stdout, /--features <a,b,c>/);
+    assert.match(result.stdout, /--design-context/);
     assert.match(result.stdout, /AI-assisted repository baseline/);
     assert.doesNotMatch(result.stdout, /\bharden\b/);
 });
@@ -245,4 +246,41 @@ test("align preserves existing repository layouts without forcing src or tests",
 
     assert.equal(packageJson.version, "1.2.3");
     assert.match(readme, /`app\/`/);
+});
+
+test("init scaffolds optional design context when requested", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+    const targetPath = path.join(tempDir, "design-aware-demo");
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    const result = runScaffold([
+        "--mode",
+        "init",
+        "--target",
+        targetPath,
+        "--project-name",
+        "Design Aware Demo",
+        "--description",
+        "Init with design references",
+        "--primary-language",
+        "TypeScript",
+        "--stack",
+        "TypeScript,React",
+        "--features",
+        "Onboarding flow,Profile settings",
+        "--design-context"
+    ], repositoryRoot);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(await pathExists(path.join(targetPath, ".project", "design", "README.md")), true);
+    assert.equal(await pathExists(path.join(targetPath, ".project", "design", "assets", ".gitkeep")), true);
+
+    const designReadme = await fs.readFile(path.join(targetPath, ".project", "design", "README.md"), "utf8");
+
+    assert.match(designReadme, /screen-name\.png/);
+    assert.match(designReadme, /screen-name\.annotated\.png/);
+    assert.match(designReadme, /#FF0095/);
 });
