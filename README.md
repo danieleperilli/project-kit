@@ -27,18 +27,80 @@ It creates the baseline quickly, then you still need to manually refine the gene
 
 ## Install As A Skill
 
-In this repository setup, the simplest installation path is to symlink Project Kit into your local Codex skills directory.
+Project Kit is a standard Codex skill directory: the repository root already contains `SKILL.md` plus the optional support files under `agents/`, `scripts/`, and `assets/`.
+
+There are currently two paths you may encounter in real Codex setups:
+
+- `~/.codex/skills`
+  This is the user-level skill location used by some Codex app installations. The local macOS environment used for this repository currently has skills installed there.
+- `.agents/skills`
+  This is the path documented in the current Agent Skills docs for repository, user, and admin discovery.
+
+OpenAI currently documents these `.agents/skills` discovery locations:
+
+- repository-scoped: `.agents/skills` from the current working directory up to the repository root;
+- user-scoped: `$HOME/.agents/skills`;
+- admin-scoped: `/etc/codex/skills`.
+
+Codex also supports symlinked skill folders.
+For practical setup, use whichever root your Codex installation already uses:
+
+- if you already have `~/.codex/skills`, install Project Kit there to stay consistent with your local app setup;
+- if you want the path that matches the current Agent Skills docs and also works well for repo-scoped sharing, use `.agents/skills`.
+
+### User-wide install on macOS or Linux with `~/.codex/skills`
 
 ```bash
-mkdir -p "$CODEX_HOME/skills"
-ln -s "/absolute/path/to/project-kit" "$CODEX_HOME/skills/project-kit"
+mkdir -p "$HOME/.codex/skills"
+ln -s "/absolute/path/to/project-kit" "$HOME/.codex/skills/project-kit"
 ```
 
-> Default `CODEX_HOME`is `~/.codex` on macOS and Linux, but it may differ based on your installation or OS.
+### User-wide install on macOS or Linux with `~/.agents/skills`
 
-After installation, restart Codex so the skill is discovered again.
+```bash
+mkdir -p "$HOME/.agents/skills"
+ln -s "/absolute/path/to/project-kit" "$HOME/.agents/skills/project-kit"
+```
 
-If your Codex installation uses different skill discovery paths or newer skill management features, use the official docs below as the source of truth.
+### User-wide install on Windows PowerShell with `.codex\skills`
+
+Use a junction as the default because it works well for directory links without depending on Developer Mode or elevated symlink privileges.
+
+```powershell
+New-Item -ItemType Directory -Force -Path "$HOME\.codex\skills" | Out-Null
+New-Item -ItemType Junction -Path "$HOME\.codex\skills\project-kit" -Target "C:\absolute\path\to\project-kit"
+```
+
+### User-wide install on Windows PowerShell with `.agents\skills`
+
+Use a junction as the default because it works well for directory links without depending on Developer Mode or elevated symlink privileges.
+
+```powershell
+New-Item -ItemType Directory -Force -Path "$HOME\.agents\skills" | Out-Null
+New-Item -ItemType Junction -Path "$HOME\.agents\skills\project-kit" -Target "C:\absolute\path\to\project-kit"
+```
+
+If Developer Mode is enabled or you are running PowerShell as administrator, you can use `-ItemType SymbolicLink` instead of `Junction`.
+
+### User-wide install inside WSL
+
+If you run Codex inside WSL, install the skill inside the Linux home seen by WSL rather than inside the Windows profile. Match the root that your WSL Codex install already uses:
+
+```bash
+mkdir -p "$HOME/.codex/skills"
+ln -s "/home/your-user/path/to/project-kit" "$HOME/.codex/skills/project-kit"
+```
+
+or:
+
+```bash
+mkdir -p "$HOME/.agents/skills"
+ln -s "/home/your-user/path/to/project-kit" "$HOME/.agents/skills/project-kit"
+```
+
+Prefer keeping both the repository and the skill under WSL paths such as `~/code/...` instead of `/mnt/c/...`, because the Codex Windows guidance explicitly calls out fewer symlink and filesystem issues there.
+
+If your Codex installation uses newer skill management features, use the official docs below as the source of truth.
 
 ## Learn How Skills Work
 
@@ -62,8 +124,9 @@ Use Project Kit through Codex whenever you want the repository structure to come
 
 ### 1. Install the skill
 
-- Symlink the repository into your Codex skills directory.
-- Restart Codex.
+- For a user-wide install, link the repository into the root your Codex setup already uses: usually `$HOME/.codex/skills/project-kit` or `$HOME/.agents/skills/project-kit`.
+- For a repo-scoped install, link it into `.agents/skills/project-kit` inside one target repository.
+- If the skill does not appear automatically, restart Codex.
 
 ### 2. Open the target repository or empty project folder
 
