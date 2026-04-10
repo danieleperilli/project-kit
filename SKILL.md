@@ -177,15 +177,18 @@ When the user provides mockups, screenshots, exports, or Figma links:
 - use paired assets as the default convention:
   - `screen-name.png`
   - `screen-name.annotated.png`
+  - `screen-name.annotations.md` when the annotated asset uses numeric callouts
   - the same rule applies to `.jpg`, `.jpeg`, `.svg`, and `.webp`
 - treat `.annotated` files as documentation overlays, not as final UI;
 - scan the design asset directory recursively and pair files by the same base name plus the `.annotated` suffix;
+- if a sibling `screen-name.annotations.md` file exists, treat it as the preferred explanation for numbered callouts such as `1`, `2`, `3`;
 - prefer exact extension matches when pairing;
 - prefer very bright annotation colors such as `#FF0095` so notes are easy to distinguish from the real interface;
 - record canonical remote links in `.project/design/README.md` only when they add value;
 - if cross-screen navigation or state transitions are still ambiguous, write a short note directly in `.project/design/README.md` or ask for clarification.
 
 Codex can infer local control meaning from annotated screenshots very well when arrows and labels clearly point to one element.
+Codex can also use numeric callouts when the detailed explanation lives in `screen-name.annotations.md`.
 Codex should not treat static exports alone as authoritative proof of cross-screen flow.
 If multiple interpretations are plausible, ask for confirmation or write the assumption down with a confidence note.
 

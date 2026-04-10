@@ -159,6 +159,7 @@ Even when the skill is used correctly, these files need human editing.
   Use this file only when the repository has user-facing UI or the user provides mockups.
   Use it to document the asset-pair convention and optional external design links.
   The default convention is `name.ext` plus `name.annotated.ext`, where the `.annotated` file contains arrows, notes, or labels that are not part of the final UI.
+  If the annotated mockup uses only numeric callouts, pair it with `name.annotations.md` and explain each number there.
   Codex can infer local control meaning well from annotated pairs, but multi-screen flows still need explicit notes when they are not obvious.
 
 ## Modes
@@ -214,6 +215,7 @@ node ./bin/project-kit-scaffold.js --mode init --target /absolute/path/to/repo -
 
 For UI-heavy projects, add `--design-context` to scaffold `.project/design/` as well.
 The lightweight convention is to store paired assets like `editor.png` and `editor.annotated.png`.
+If the overlay only contains numeric callouts, add `editor.annotations.md`.
 
 This path is useful when:
 

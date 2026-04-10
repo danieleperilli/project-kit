@@ -101,6 +101,7 @@ Do not skip the reviewer phase for complex changes.
 - Update `.project/features.md` when stable feature scope changes.
 - Never duplicate interfaces, schemas, routes, or other code contracts inside `.project/features.md`.
 - When `.project/design/assets/` exists, scan for `name.ext` and `name.annotated.ext` pairs using `.png`, `.jpg`, `.jpeg`, `.svg`, or `.webp`.
+- When `name.annotations.md` exists next to a mockup pair, treat it as the canonical explanation for numeric callouts.
 - Treat `.annotated` files as explanatory overlays, not as product UI.
 - Do not infer screen-to-screen flows from static mockups when the evidence is ambiguous; record assumptions explicitly in `.project/design/README.md` or surface them in chat.
 - Append a dated note to `.project/decisions.md` when a technical or workflow decision becomes durable.

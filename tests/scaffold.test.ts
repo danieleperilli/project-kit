@@ -282,5 +282,6 @@ test("init scaffolds optional design context when requested", async (t) => {
 
     assert.match(designReadme, /screen-name\.png/);
     assert.match(designReadme, /screen-name\.annotated\.png/);
+    assert.match(designReadme, /screen-name\.annotations\.md/);
     assert.match(designReadme, /#FF0095/);
 });
