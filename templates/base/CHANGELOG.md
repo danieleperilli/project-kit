@@ -14,4 +14,4 @@ This project follows Semantic Versioning.
 
 ### Codex Log
 
-- {{currentDate}} - Initial project baseline scaffolded.
+- {{currentDate}} - Initial architecture-first project baseline scaffolded.

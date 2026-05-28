@@ -1,6 +1,7 @@
 {
     "projectName": "project-kit",
-    "description": "Lean baseline for human-led, AI-assisted development",
+    "description": "Architecture-first baseline for developer-led Codex work",
+    "originalPromptEnglish": "Create a disciplined Codex-ready baseline for a TypeScript and React project with feature briefs and review gates.",
     "primaryLanguage": "TypeScript",
     "stack": [
         "TypeScript",

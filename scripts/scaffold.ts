@@ -1,12 +1,14 @@
 const fs = require("node:fs/promises") as typeof import("node:fs/promises");
 const childProcess = require("node:child_process") as typeof import("node:child_process");
 const path = require("node:path") as typeof import("node:path");
+const featureBrief = require("./feature-brief.ts") as typeof import("./feature-brief");
 
 interface IScaffoldOptions {
     mode: "init" | "align";
     target: string;
     projectName: string;
     description: string;
+    originalPromptEnglish: string | null;
     primaryLanguage: string | null;
     projectVersion: string;
     stack: string[];
@@ -28,7 +30,7 @@ interface ITemplateVariables {
     manifestName: string;
     projectVersion: string;
     stackSummary: string;
-    featureSummary: string;
+    featureIndexSummary: string;
     directorySummary: string;
 }
 
@@ -46,11 +48,29 @@ interface IManifestDefinition {
 interface IInitMetadata {
     projectName?: unknown;
     description?: unknown;
+    originalPromptEnglish?: unknown;
     primaryLanguage?: unknown;
     stack?: unknown;
     features?: unknown;
     designContext?: unknown;
     initGit?: unknown;
+}
+
+interface IProjectConfig {
+    projectName: string;
+    description: string;
+    originalPromptEnglish?: string;
+    primaryLanguage: string;
+    stack: string[];
+    features: string[];
+    designContext: boolean;
+    initGit: boolean;
+}
+
+interface IFeatureDefinition {
+    name: string;
+    slug: string;
+    outputPath: string;
 }
 
 type GitInitializationStatus = "not-requested" | "initialized" | "skipped-existing-worktree";
@@ -73,7 +93,7 @@ function buildHelpText(): string {
     return [
         "Project Kit Scaffold",
         "",
-        "Bootstrap or align a human-led, AI-assisted repository baseline.",
+        "Bootstrap or align an architecture-first, review-gated repository baseline for Codex.",
         "",
         "Usage:",
         "  project-kit-scaffold --mode <init|align> --target <path> [options]",
@@ -86,23 +106,25 @@ function buildHelpText(): string {
         "  --description <text>          Short human-facing project summary.",
         "  --primary-language <name>     Primary language used to select the manifest and style guide.",
         "  --stack <a,b,c>               Comma-separated stack summary.",
-        "  --features <a,b,c>            Comma-separated high-level project features.",
-        "  --design-context              Scaffold optional design references for UI mockups, links, and annotations.",
+        "  --features <a,b,c>            Comma-separated feature brief names.",
+        "  --design-context              Scaffold the optional UI design workspace under .project/design/.",
         "  --init-git                    Initialize Git when running init and the target is not already in a worktree.",
         "  --force                       Overwrite generated files that already exist.",
         "  --help, -h                    Show this message.",
         "",
         "Notes:",
-        "  - `init` requires project name, description, primary language, stack, and high-level features.",
-        "  - `align` requires --features when `.project/features.md` does not already exist.",
+        "  - `init` requires project name, description, primary language, and stack.",
+        "  - Feature briefs are optional during scaffold; add them later with `project-kit feature create`.",
         `  - If --meta is omitted, ${DEFAULT_PROJECT_CONFIG_FILE_NAME} is loaded automatically from the current working directory when present.`,
+        `  - ${DEFAULT_PROJECT_CONFIG_FILE_NAME} may include \`originalPromptEnglish\` to preserve the full source request in English.`,
+        `  - \`init\` writes ${DEFAULT_PROJECT_CONFIG_FILE_NAME} into the target repository when it does not already exist.`,
         "  - Existing files are preserved unless --force is used.",
         "  - The scripted CLI supports `init` and `align`.",
         "",
         "Examples:",
-        "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-name demo --description \"AI-assisted demo\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting",
-        "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-name demo-ui --description \"AI-assisted UI demo\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting --design-context",
-        "  project-kit-scaffold --mode align --target /absolute/path/to/existing-repo --project-name existing-repo --description \"Aligned for AI-assisted work\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting"
+        "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-name demo --description \"Developer-led delivery baseline\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting",
+        "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-name demo-ui --description \"Architecture-first UI app\" --primary-language TypeScript --stack TypeScript,React --features onboarding,dashboard --design-context",
+        "  project-kit-scaffold --mode align --target /absolute/path/to/existing-repo --project-name existing-repo --description \"Aligned for review-gated Codex work\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting"
     ].join("\n");
 }
 
@@ -137,17 +159,17 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
     const mode = values.get("mode");
 
     if (mode !== "init" && mode !== "align") {
-        throw new Error('Missing or invalid "--mode". Use "init" or "align".');
+        throw new Error("Missing or invalid \"--mode\". Use \"init\" or \"align\".");
     }
 
     const targetArg = values.get("target");
 
     if (!targetArg) {
-        throw new Error('Missing required "--target" argument.');
+        throw new Error("Missing required \"--target\" argument.");
     }
 
     if (values.has("project-version")) {
-        throw new Error('Unsupported "--project-version" argument. Project version is assigned automatically: `0.1.0` for `init`, or the existing root manifest version for `align`.');
+        throw new Error("Unsupported \"--project-version\" argument. Project version is assigned automatically: `0.1.0` for `init`, or the existing root manifest version for `align`.");
     }
 
     const metadataPath = await resolveMetadataPath(values.get("meta") ?? values.get("config"), cwd);
@@ -155,13 +177,11 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
     const target = path.resolve(cwd, targetArg);
     const projectNameValue = values.get("project-name") ?? readStringMetadata(metadata.projectName);
     const descriptionValue = values.get("description") ?? readStringMetadata(metadata.description);
+    const originalPromptEnglish = readStringMetadata(metadata.originalPromptEnglish) ?? null;
     const primaryLanguage = values.get("primary-language") ?? values.get("language") ?? readStringMetadata(metadata.primaryLanguage) ?? null;
     const stack = values.has("stack") ? parseList(values.get("stack")) : parseMetadataList(metadata.stack);
     const features = values.has("features") ? parseList(values.get("features")) : parseMetadataList(metadata.features);
     const projectVersion = await resolveProjectVersion(mode, target);
-    const targetExists = await pathExists(target);
-    const featuresPath = path.join(target, ".project", "features.md");
-    const requiresFeatures = mode === "init" || (mode === "align" && targetExists && !(await pathExists(featuresPath)));
 
     validateProjectVersion(projectVersion);
 
@@ -184,23 +204,20 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
             missingArguments.push("--stack");
         }
 
-        if (requiresFeatures && features.length === 0) {
-            missingArguments.push("--features");
-        }
-
         if (missingArguments.length > 0) {
             throw new Error(`Missing required ${mode} metadata: ${missingArguments.join(", ")}.`);
         }
     }
 
     const projectName = projectNameValue ?? path.basename(target);
-    const description = descriptionValue ?? "Describe the project purpose and boundaries.";
+    const description = descriptionValue ?? "Describe the project purpose, architecture, and boundaries.";
 
     return {
         mode,
         target,
         projectName,
         description,
+        originalPromptEnglish,
         primaryLanguage,
         projectVersion,
         stack,
@@ -478,16 +495,24 @@ function buildTemplateFiles(options: IScaffoldOptions): ITemplateFile[] {
             outputPath: path.join(".project", "overview.md")
         },
         {
-            templatePath: path.join("templates", "base", ".project", "features.md"),
-            outputPath: path.join(".project", "features.md")
-        },
-        {
             templatePath: path.join("templates", "base", ".project", "architecture.md"),
             outputPath: path.join(".project", "architecture.md")
         },
         {
+            templatePath: path.join("templates", "base", ".project", "constraints.md"),
+            outputPath: path.join(".project", "constraints.md")
+        },
+        {
             templatePath: path.join("templates", "base", ".project", "decisions.md"),
             outputPath: path.join(".project", "decisions.md")
+        },
+        {
+            templatePath: path.join("templates", "base", ".project", "review-checklist.md"),
+            outputPath: path.join(".project", "review-checklist.md")
+        },
+        {
+            templatePath: path.join("templates", "base", ".project", "features", "index.md"),
+            outputPath: path.join(".project", "features", "index.md")
         }
     ];
 
@@ -496,6 +521,14 @@ function buildTemplateFiles(options: IScaffoldOptions): ITemplateFile[] {
             {
                 templatePath: path.join("templates", "base", ".project", "design", "README.md"),
                 outputPath: path.join(".project", "design", "README.md")
+            },
+            {
+                templatePath: path.join("templates", "base", ".project", "design", "flows.md"),
+                outputPath: path.join(".project", "design", "flows.md")
+            },
+            {
+                templatePath: path.join("templates", "base", ".project", "design", "sources.md"),
+                outputPath: path.join(".project", "design", "sources.md")
             },
             {
                 templatePath: path.join("templates", "base", ".project", "design", "assets", ".gitkeep"),
@@ -633,27 +666,39 @@ function buildStackSummary(stack: string[]): string {
 }
 
 /**
- * Render a human-readable feature summary.
+ * Build the feature file definitions for the current run.
  * @param {string[]} features
  */
-function buildFeatureSummary(features: string[]): string {
-    if (features.length === 0) {
-        return [
-            "## Feature Name",
-            "",
-            "- Summary:",
-            "- In scope:",
-            "- Out of scope:"
-        ].join("\n");
+function buildFeatureDefinitions(features: string[]): IFeatureDefinition[] {
+    const usedSlugs = new Map<string, number>();
+
+    return features.map((featureName) => {
+        const baseSlug = featureBrief.buildFeatureSlug(featureName);
+        const usageCount = (usedSlugs.get(baseSlug) ?? 0) + 1;
+        const slug = usageCount === 1 ? baseSlug : `${baseSlug}-${usageCount}`;
+
+        usedSlugs.set(baseSlug, usageCount);
+
+        return {
+            name: featureName,
+            slug,
+            outputPath: path.join(".project", "features", `${slug}.md`)
+        };
+    });
+}
+
+/**
+ * Render the feature brief index summary.
+ * @param {IFeatureDefinition[]} featureDefinitions
+ */
+function buildFeatureIndexSummary(featureDefinitions: IFeatureDefinition[]): string {
+    if (featureDefinitions.length === 0) {
+        return "- Add one file per implementation-ready feature brief as the architecture becomes clear.";
     }
 
-    return features.map((entry) => [
-        `## ${entry}`,
-        "",
-        "- Summary:",
-        "- In scope:",
-        "- Out of scope:"
-    ].join("\n")).join("\n\n");
+    return featureDefinitions
+        .map((featureDefinition) => `- [${featureDefinition.name}](./${featureDefinition.slug}.md)`)
+        .join("\n");
 }
 
 /**
@@ -681,7 +726,7 @@ function renderTemplate(template: string, variables: ITemplateVariables): string
         .replaceAll("{{manifestName}}", variables.manifestName)
         .replaceAll("{{projectVersion}}", variables.projectVersion)
         .replaceAll("{{stackSummary}}", variables.stackSummary)
-        .replaceAll("{{featureSummary}}", variables.featureSummary)
+        .replaceAll("{{featureIndexSummary}}", variables.featureIndexSummary)
         .replaceAll("{{directorySummary}}", variables.directorySummary);
 }
 
@@ -787,6 +832,32 @@ function buildManifestName(projectName: string): string {
 }
 
 /**
+ * Build the persisted init metadata for project-config.json.
+ * @param {IScaffoldOptions} options
+ */
+function buildProjectConfig(options: IScaffoldOptions): IProjectConfig {
+    if (options.mode !== "init" || !options.primaryLanguage) {
+        throw new Error("Project config can only be written during init when the primary language is known.");
+    }
+
+    const projectConfig: IProjectConfig = {
+        projectName: options.projectName,
+        description: options.description,
+        primaryLanguage: options.primaryLanguage,
+        stack: options.stack,
+        features: options.features,
+        designContext: options.designContext,
+        initGit: options.initGit
+    };
+
+    if (options.originalPromptEnglish) {
+        projectConfig.originalPromptEnglish = options.originalPromptEnglish;
+    }
+
+    return projectConfig;
+}
+
+/**
  * Write the stack-native project manifest or the generic fallback.
  * @param {string} targetRoot
  * @param {IManifestDefinition} manifestDefinition
@@ -836,6 +907,24 @@ async function writeProjectManifest(targetRoot: string, manifestDefinition: IMan
     };
 
     await fs.writeFile(targetPath, `${JSON.stringify(projectJson, null, 4)}\n`, "utf8");
+    return true;
+}
+
+/**
+ * Write project-config.json into the target repository unless it should be preserved.
+ * @param {string} targetRoot
+ * @param {IProjectConfig} projectConfig
+ * @param {boolean} force
+ */
+async function writeProjectConfig(targetRoot: string, projectConfig: IProjectConfig, force: boolean): Promise<boolean> {
+    const targetPath = path.join(targetRoot, DEFAULT_PROJECT_CONFIG_FILE_NAME);
+    const targetExists = await pathExists(targetPath);
+
+    if (targetExists && !force) {
+        return false;
+    }
+
+    await fs.writeFile(targetPath, `${JSON.stringify(projectConfig, null, 4)}\n`, "utf8");
     return true;
 }
 
@@ -892,8 +981,9 @@ function initializeGitRepository(options: IScaffoldOptions): GitInitializationSt
 /**
  * Build the template variables for the current repository state.
  * @param {IScaffoldOptions} options
+ * @param {IFeatureDefinition[]} featureDefinitions
  */
-async function buildTemplateVariables(options: IScaffoldOptions): Promise<ITemplateVariables> {
+async function buildTemplateVariables(options: IScaffoldOptions, featureDefinitions: IFeatureDefinition[]): Promise<ITemplateVariables> {
     const directories = await listTopLevelDirectories(options.target);
 
     return {
@@ -903,9 +993,34 @@ async function buildTemplateVariables(options: IScaffoldOptions): Promise<ITempl
         manifestName: buildManifestName(options.projectName),
         projectVersion: options.projectVersion,
         stackSummary: buildStackSummary(options.stack),
-        featureSummary: buildFeatureSummary(options.features),
+        featureIndexSummary: buildFeatureIndexSummary(featureDefinitions),
         directorySummary: buildDirectorySummary(directories)
     };
+}
+
+/**
+ * Write one feature brief file per named feature unless an existing file should be preserved.
+ * @param {string} targetRoot
+ * @param {IFeatureDefinition[]} featureDefinitions
+ * @param {boolean} force
+ */
+async function writeFeatureBriefs(targetRoot: string, featureDefinitions: IFeatureDefinition[], force: boolean): Promise<number> {
+    let writtenFiles = 0;
+
+    for (const featureDefinition of featureDefinitions) {
+        const targetPath = path.join(targetRoot, featureDefinition.outputPath);
+        const targetExists = await pathExists(targetPath);
+
+        if (targetExists && !force) {
+            continue;
+        }
+
+        await fs.mkdir(path.dirname(targetPath), { recursive: true });
+        await fs.writeFile(targetPath, `${featureBrief.buildFeatureBriefDocument(featureDefinition.name)}\n`, "utf8");
+        writtenFiles += 1;
+    }
+
+    return writtenFiles;
 }
 
 /**
@@ -926,7 +1041,8 @@ async function main(): Promise<void> {
     await ensureBaselineDirectories(options);
 
     const skillRoot = path.resolve(__dirname, "..");
-    const variables = await buildTemplateVariables(options);
+    const featureDefinitions = buildFeatureDefinitions(options.features);
+    const variables = await buildTemplateVariables(options, featureDefinitions);
     const templateFiles = buildTemplateFiles(options);
     const styleGuides = detectStyleGuides(options.primaryLanguage, options.stack);
     const manifestDefinition = resolveManifest(options.primaryLanguage, options.stack);
@@ -939,6 +1055,8 @@ async function main(): Promise<void> {
             writtenFiles += 1;
         }
     }
+
+    writtenFiles += await writeFeatureBriefs(options.target, featureDefinitions, options.force);
 
     const codeStyleWasWritten = await writeCodeStyle(skillRoot, options.target, styleGuides, options.force);
 
@@ -956,6 +1074,14 @@ async function main(): Promise<void> {
 
     if (workspaceWasWritten) {
         writtenFiles += 1;
+    }
+
+    if (options.mode === "init") {
+        const projectConfigWasWritten = await writeProjectConfig(options.target, buildProjectConfig(options), options.force);
+
+        if (projectConfigWasWritten) {
+            writtenFiles += 1;
+        }
     }
 
     const gitInitializationStatus = initializeGitRepository(options);

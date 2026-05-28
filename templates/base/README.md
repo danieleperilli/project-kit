@@ -2,29 +2,30 @@
 
 {{description}}
 
-## Working model
+## Operating Model
 
-- Humans own scope, acceptance criteria, and decisions.
-- Agents help with implementation and repository understanding.
-- This baseline is designed for an AI-assisted workflow with reviewable context, not for unreviewed vibe-coding.
-- Durable context lives in `.project/overview.md`, `.project/features.md`, `.project/architecture.md`, and `.project/decisions.md`.
-- When the project includes UI mockups or design links, keep them in `.project/design/` and prefer paired assets such as `screen.png` plus `screen.annotated.png`.
+- Humans own architecture, scope, UI/UX decisions, review, and release decisions.
+- Codex helps with implementation, repository analysis, and controlled documentation updates.
+- This baseline is architecture-first and review-gated: use small implementation batches and review every non-trivial change before moving on.
+- Durable context lives in `.project/overview.md`, `.project/architecture.md`, `.project/constraints.md`, `.project/decisions.md`, `.project/features/index.md`, and `.project/review-checklist.md`.
+- When the project has UI, treat `.project/design/` as the source of truth. Mockups, annotated assets, and flow notes are human-owned inputs that Codex should implement rather than invent.
 - Coding conventions live in `CODE_STYLE.md`.
 - Project name and version live in the project manifest.
 - New repositories use `src/` for application code and `tests/` for automated tests by default.
 - Existing repositories should keep their established layout when this baseline is added via alignment.
-- High-level project features live in `.project/features.md`.
 
-## Testing strategy
+## Delivery Workflow
 
-- Core functionality is listed in `.project/overview.md`.
-- Changes that affect core functionality should be protected by unit tests.
-- Not every change needs new tests; prefer high-signal tests for high-risk behavior.
+1. Capture or refine the system shape in `.project/overview.md`, `.project/architecture.md`, and `.project/constraints.md`.
+2. Define one feature brief in `.project/features/` before implementation starts.
+3. Add or update `.project/design/` assets and notes when UI behavior or layout matters.
+4. Ask Codex to implement one small, reviewable batch at a time.
+5. Review the resulting diff against `.project/review-checklist.md` before the next batch.
 
 ## Stack
 
 {{stackSummary}}
 
-## Main directories
+## Main Directories
 
 {{directorySummary}}

@@ -7,10 +7,13 @@
 3. `CHANGELOG.md`
 4. `CODE_STYLE.md`
 5. `.project/overview.md`
-6. `.project/features.md`
-7. `.project/architecture.md`
-8. `.project/decisions.md`
-9. `.project/design/README.md` if present
+6. `.project/architecture.md`
+7. `.project/constraints.md`
+8. `.project/features/index.md`
+9. The relevant `.project/features/*.md` files for the requested change
+10. `.project/decisions.md`
+11. `.project/review-checklist.md`
+12. `.project/design/README.md`, `flows.md`, and `sources.md` if present
 
 ## Language Policy (Mandatory)
 
@@ -29,6 +32,13 @@
 - Follow the actual repository configuration first.
 - If project config, linters, formatters, or existing conventions define a rule, those rules override `CODE_STYLE.md`.
 - Project style guides provide defaults only when the repository does not define a stricter convention.
+
+## Operating Model
+
+- Humans own architecture, scope, UI/UX decisions, and acceptance.
+- Treat `.project/overview.md`, `.project/architecture.md`, `.project/constraints.md`, and the relevant feature briefs as the primary execution context.
+- Use small implementation batches that a human can review comfortably.
+- Do not mark a non-trivial batch as truly done until a human review has happened.
 
 ## Security First Principle
 
@@ -82,6 +92,22 @@ Do not skip the reviewer phase for complex changes.
 - Add comments to explain non-obvious code, but do not add comments for self-explanatory code.
 - Always add JSDoc/PHPDoc comments for all functions and methods, even if their purpose seems obvious.
 
+### Helper Function Discipline
+
+- Do not extract helper functions for trivial logic.
+- Keep simple predicates, comparators, mappers, and formatters inline unless reused in at least three places or clearly complex.
+- A helper is allowed only when it removes meaningful complexity or names a domain concept that is not obvious from the code.
+- Do not split one simple operation into multiple helper functions.
+- Prefer a local constant plus inline callback for small ordering, filtering, or mapping rules.
+
+## Design Context
+
+- If `.project/design/` exists, treat it as the authoritative source for UI implementation context.
+- UI/UX decisions, visual hierarchy, and mockups remain human-owned.
+- Codex should implement the provided design context, not invent a different interface.
+- When the mockups are ambiguous, record the assumption explicitly or ask for clarification.
+- Treat `.annotated` assets as explanatory overlays, not as product UI.
+
 ## Testing Policy
 
 - Do not add tests for every change by default.
@@ -96,18 +122,20 @@ Do not skip the reviewer phase for complex changes.
 
 - Prefer updating existing files over creating new ones.
 - Do not duplicate code contracts or directory listings in docs.
-- Treat `.project/features.md` as the required source of truth for the project feature inventory.
-- If `.project/design/` exists, treat it as the source of truth for design references and UI annotations.
-- Update `.project/features.md` when stable feature scope changes.
-- Never duplicate interfaces, schemas, routes, or other code contracts inside `.project/features.md`.
-- When `.project/design/assets/` exists, scan for `name.ext` and `name.annotated.ext` pairs using `.png`, `.jpg`, `.jpeg`, `.svg`, or `.webp`.
-- When `name.annotations.md` exists next to a mockup pair, treat it as the canonical explanation for numeric callouts.
-- Treat `.annotated` files as explanatory overlays, not as product UI.
-- Do not infer screen-to-screen flows from static mockups when the evidence is ambiguous; record assumptions explicitly in `.project/design/README.md` or surface them in chat.
+- Treat `.project/features/index.md` as the map of the feature brief directory.
+- Treat the relevant `.project/features/*.md` file as the source of truth for feature scope, acceptance, and review focus.
+- Update `.project/constraints.md` when durable product, technical, security, or delivery constraints change.
+- If `.project/design/` exists, keep asset references, flow notes, and remote design sources aligned with the implementation.
 - Append a dated note to `.project/decisions.md` when a technical or workflow decision becomes durable.
 - Add a changelog entry for every meaningful change.
 - Use `Unreleased > Codex Log` for agent-maintained notes when the work should be tracked but does not justify a version bump yet.
 - Surface assumptions clearly when the repository does not provide enough context.
+
+## Review Gate
+
+- Before handing off a non-trivial batch, read `.project/review-checklist.md`.
+- Call out mismatches against architecture, constraints, feature briefs, or design references explicitly.
+- Flag any missing tests or unresolved ambiguity instead of hiding them behind optimistic language.
 
 ## Git Workflow
 

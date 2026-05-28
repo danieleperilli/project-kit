@@ -4,9 +4,13 @@
 
 {{description}}
 
+## Users And Value
+
+- Primary user or operator:
+- Primary value delivered:
+
 ## Scope
 
-- Primary outcome:
 - In scope:
 - Out of scope:
 
@@ -16,11 +20,10 @@
 - Every item listed here should be covered by unit tests when the repository supports automated testing.
 - Keep this list short and durable.
 
-## Constraints
+## Delivery Notes
 
-- Product constraints:
-- Technical constraints:
-- Operational constraints:
+- What must work early:
+- What can wait:
 
 ## Non-goals
 

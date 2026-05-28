@@ -1,17 +1,26 @@
 # Architecture
 
-## Code layout
+## System Shape
 
-- Application code lives in `src/`.
-- Automated tests live in `tests/` unless the repository already follows a different convention.
+- High-level structure:
 
-## Entry points
+## Entry Points
 
 - Main entry points:
 
-## Components
+## Modules
 
-- Main components or modules:
+- Main modules or services:
+
+## Trust Boundaries
+
+- User-controlled input:
+- Authentication or identity boundaries:
+- External systems or networks:
+
+## Data And Persistence
+
+- Main data stores and ownership:
 
 ## Integrations
 
@@ -23,4 +32,4 @@
 
 ## Notes
 
-- Record only durable architectural information that helps future changes.
+- Record only durable architectural information that affects future changes.
