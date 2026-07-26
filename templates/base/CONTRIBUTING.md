@@ -9,20 +9,19 @@
 - Open a pull request for every code change. Do not merge new code directly into the default branch.
 - Name branches using lowercase initials plus a kebab-case feature slug: `ab/new-feature`.
 
-## Before Editing
+## Context Loading
 
-1. Read `README.md`.
-2. Read `AGENTS.md`.
-3. Read `CHANGELOG.md`.
-4. Read `CODE_STYLE.md`.
-5. Read `.project/overview.md`.
-6. Read `.project/architecture.md`.
-7. Read `.project/constraints.md`.
-8. Read `.project/features/index.md`.
-9. Read the relevant `.project/features/*.md` files for the change.
-10. Read `.project/decisions.md`.
-11. Read `.project/review-checklist.md`.
-12. Read `.project/design/README.md`, `flows.md`, and `sources.md` when UI context exists.
+Start with `AGENTS.md` and task files. For non-trivial implementation work, also read `.project/overview.md`, `.project/architecture.md`, and `.project/constraints.md` before editing.
+
+Load additional context only when it applies:
+
+- `README.md`: purpose, setup, workflow.
+- `CHANGELOG.md`: release notes; only `Unreleased` unless history is requested.
+- `CODE_STYLE.md`: before source edits, if present.
+- `.project/features/index.md` and relevant `.project/features/*.md`: feature-scoped work.
+- `.project/decisions.md`: durable decision check or addition.
+- `.project/review-checklist.md`: before non-trivial handoff.
+- `.project/design/README.md`, `flows.md`, and `sources.md`: UI or design alignment.
 
 ## Delivery Workflow
 

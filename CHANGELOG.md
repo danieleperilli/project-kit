@@ -12,6 +12,7 @@ This project follows Semantic Versioning.
 
 - Repositioned Project Kit around an architecture-first, developer-led Codex workflow with feature briefs, review gates, and human-owned design context.
 - Updated the scaffold to generate `.project/constraints.md`, `.project/review-checklist.md`, `.project/features/index.md`, per-feature brief files, and richer optional `.project/design/` files.
+- Changed scaffolded agent and contributor guidance to load project context conditionally and inspect only `Unreleased` changelog entries by default.
 
 ### Fixed
 

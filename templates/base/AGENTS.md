@@ -1,19 +1,22 @@
 # Agents Instructions
 
-## Read Order
+## Context Loading
 
-1. `README.md`
-2. `CONTRIBUTING.md`
-3. `CHANGELOG.md`
-4. `CODE_STYLE.md`
-5. `.project/overview.md`
-6. `.project/architecture.md`
-7. `.project/constraints.md`
-8. `.project/features/index.md`
-9. The relevant `.project/features/*.md` files for the requested change
-10. `.project/decisions.md`
-11. `.project/review-checklist.md`
-12. `.project/design/README.md`, `flows.md`, and `sources.md` if present
+Do not read every project document by default.
+
+Always start with task files. For non-trivial implementation work, also read `.project/overview.md`, `.project/architecture.md`, and `.project/constraints.md` before editing.
+
+Load additional context only when it applies:
+
+- `README.md`: purpose, setup, workflow.
+- `CONTRIBUTING.md`: contribution or review conventions.
+- `CHANGELOG.md`: release notes; only `Unreleased` unless history is requested.
+- `CODE_STYLE.md`: before source edits, if present.
+- `.project/features/index.md`: feature brief lookup.
+- Relevant `.project/features/*.md`: changed feature only.
+- `.project/decisions.md`: durable decision check or addition.
+- `.project/review-checklist.md`: before non-trivial handoff.
+- `.project/design/README.md`, `flows.md`, and `sources.md`: UI or design alignment.
 
 ## Language Policy (Mandatory)
 
