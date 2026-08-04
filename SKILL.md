@@ -59,6 +59,10 @@ Classify the request before making changes:
 - Do not create a contracts directory by default. Introduce explicit contract docs only when the project needs them.
 - Avoid placeholder noise. Prompts like "Primary outcome:" are acceptable; `TODO` filler is not.
 - Repository configuration overrides project style guides. Treat project style files as defaults, not as higher-precedence truth.
+- Prefer the smallest change that fully satisfies the current requirement.
+- Treat anti-overengineering as a Reviewer responsibility rather than a mandatory additional agent or process phase.
+- Do not add abstractions, configuration, fallback paths, extension points, or defensive layers for hypothetical future needs.
+- Keep necessary security, correctness, data-integrity, and trust-boundary protections even when simplifying a change.
 
 ## Workflow
 
@@ -178,6 +182,7 @@ For every non-trivial batch:
 
 - align the work with `.project/architecture.md`, `.project/constraints.md`, and the relevant feature brief;
 - keep the diff small enough for meaningful review;
+- use the Reviewer phase to challenge speculative abstractions, duplicated validation, unnecessary fallback paths, and code that can be removed without weakening the stated requirement;
 - use `.project/review-checklist.md` before considering the batch complete.
 
 ### 6. Preserve human ownership

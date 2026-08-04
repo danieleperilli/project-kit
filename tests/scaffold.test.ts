@@ -110,6 +110,7 @@ test("loads project-config.json automatically during init", async (t) => {
     const agents = await fs.readFile(path.join(targetPath, "AGENTS.md"), "utf8");
     const contributing = await fs.readFile(path.join(targetPath, "CONTRIBUTING.md"), "utf8");
     const readme = await fs.readFile(path.join(targetPath, "README.md"), "utf8");
+    const reviewChecklist = await fs.readFile(path.join(targetPath, ".project", "review-checklist.md"), "utf8");
     const featureIndex = await fs.readFile(path.join(targetPath, ".project", "features", "index.md"), "utf8");
     const featureBrief = await fs.readFile(path.join(targetPath, ".project", "features", "user-authentication.md"), "utf8");
 
@@ -121,11 +122,15 @@ test("loads project-config.json automatically during init", async (t) => {
     assert.match(agents, /## Context Loading/);
     assert.match(agents, /For non-trivial implementation work, also read `\.project\/overview\.md`, `\.project\/architecture\.md`, and `\.project\/constraints\.md` before editing/);
     assert.match(agents, /only `Unreleased` unless history is requested/);
+    assert.match(agents, /## Anti-Overengineering Gate/);
+    assert.match(agents, /Security and correctness take precedence over simplicity/);
     assert.doesNotMatch(agents, /## Read Order/);
     assert.match(contributing, /## Context Loading/);
     assert.match(contributing, /For non-trivial implementation work, also read `\.project\/overview\.md`, `\.project\/architecture\.md`, and `\.project\/constraints\.md` before editing/);
     assert.match(contributing, /`CODE_STYLE\.md`: before source edits, if present/);
     assert.match(readme, /review-gated/);
+    assert.match(reviewChecklist, /## Simplicity And Necessity/);
+    assert.match(reviewChecklist, /smallest change that fully satisfies the current requirement/);
     assert.match(featureIndex, /\[User authentication\]\(\.\/user-authentication\.md\)/);
     assert.match(featureIndex, /\[Usage reporting\]\(\.\/usage-reporting\.md\)/);
     assert.match(featureBrief, /## Acceptance criteria/);

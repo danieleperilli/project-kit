@@ -123,6 +123,7 @@ That review should cover:
 
 - architecture alignment;
 - feature alignment;
+- simplicity and necessity;
 - security;
 - test coverage where needed;
 - design fidelity when UI is involved.

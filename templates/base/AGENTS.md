@@ -79,7 +79,8 @@ For non-trivial changes, follow this sequence even if the work stays inside a si
    - Apply minimal and controlled changes.
    - Avoid refactoring unrelated code.
 3. Reviewer
-   - Validate security and correctness.
+   - Validate security, correctness, and necessity.
+   - Perform the anti-overengineering gate below.
    - Classify issues: High / Medium / Low.
    - Suggest minimal hardening and test cases.
 
@@ -102,6 +103,17 @@ Do not skip the reviewer phase for complex changes.
 - A helper is allowed only when it removes meaningful complexity or names a domain concept that is not obvious from the code.
 - Do not split one simple operation into multiple helper functions.
 - Prefer a local constant plus inline callback for small ordering, filtering, or mapping rules.
+
+## Anti-Overengineering Gate
+
+Apply this gate during the Reviewer phase.
+
+- Prefer the smallest change that fully satisfies the current requirement.
+- Do not add abstractions, wrappers, configuration, fallback paths, extension points, or defensive layers for hypothetical future needs.
+- Add defensive checks at trust boundaries and for plausible failure modes; do not duplicate validation across trusted internal layers.
+- Remove new code, steps, tests, or documentation that does not protect a stated requirement, security boundary, data integrity rule, external integration, or known regression.
+- When a simpler implementation is sufficient, prefer it and document any material assumption.
+- Security and correctness take precedence over simplicity; the gate removes ceremony, not necessary safeguards.
 
 ## Design Context
 
