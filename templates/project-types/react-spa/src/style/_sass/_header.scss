@@ -1,0 +1,11 @@
+@use "mixins";
+@use "responsive";
+
+// Header
+header.main  {
+    background: var(--header-back-color);
+    color: var(--header-color);
+    border-bottom: 2px solid var(--border-color);
+    
+}
+

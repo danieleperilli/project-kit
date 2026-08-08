@@ -1,0 +1,63 @@
+// Theme
+
+// Color definitions
+@use 'theme-light';
+@use 'theme-dark';
+
+// Light theme
+@mixin light-theme {
+    @include theme-light.light-colors;
+
+    // Hide dark-only items
+    .dark { display: none !important; }
+}
+
+// Dark theme
+@mixin dark-theme {
+    @include theme-dark.dark-colors;
+
+    // Hide light-only items and show dark-only items
+    .dark { display: unset !important;  }
+    .light { display: none !important; } 
+}
+
+// Apply theme to page
+html, [data-light] {
+    color-scheme: light dark;
+    @include light-theme;
+}
+
+// Apply dark theme based on system preference or data attribute
+// Not needed because React app handles it
+/*@media (prefers-color-scheme: dark) {
+    html:not([data-light]) {
+        @include dark-theme;
+    }
+}*/
+[data-dark] {
+    @include dark-theme;
+}
+
+// Utility classes
+@mixin if-dark {
+    @media (prefers-color-scheme: dark) {
+        html:not([data-light]) & {
+            @content;
+        }
+    }
+    [data-dark] & {
+        @content;
+    }
+}
+
+.dark {
+    display: none !important;
+    @include if-dark {
+        display: unset !important;
+    }
+}
+.light {
+    @include if-dark {
+        display: none !important;
+    }
+}

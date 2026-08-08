@@ -75,6 +75,7 @@ For `init`, expect this metadata:
 
 ```json
 {
+  "projectType": "react-spa",
   "projectName": "project-kit",
   "description": "Architecture-first baseline for developer-led Codex work",
   "originalPromptEnglish": "Create a disciplined Codex-ready baseline for a TypeScript and React project with feature briefs and review gates.",
@@ -95,6 +96,7 @@ Required fields:
 
 Optional fields:
 
+- `projectType` currently supports `react-spa` and applies only during `init`
 - `features`
 - `originalPromptEnglish`
 - `initGit` defaults to `false`
@@ -117,6 +119,7 @@ If the user does not provide `initGit`, ask whether Git should be initialized.
 For `align`, reuse `.project/features/index.md` when it already captures the feature directory.
 If the user provides metadata values in non-English, keep the conversation in the user's language but translate all file-facing text to English before scaffolding.
 The scaffold can read the metadata from `project-config.json`, from `project-config.sample.json`, or from any JSON file passed with `--meta`.
+The `react-spa` project type applies the bundled TypeScript, React, and Vite starter before the durable Project Kit baseline is rendered. It is explicit rather than inferred from `stack`, because React may also describe frameworks, libraries, extensions, or non-SPA projects.
 
 ### 1. Inspect first
 
@@ -229,6 +232,7 @@ node --experimental-strip-types scripts/scaffold.ts ...
 
 Use the script to create the baseline consistently, then refine file contents based on the actual repository context.
 For `init`, the script accepts `--meta /path/to/file.json`; if `--meta` is omitted, it automatically reads `project-config.json` from the current working directory when present. CLI flags override JSON values when both are present.
+Use `--project-type react-spa` or `"projectType": "react-spa"` to apply the bundled application starter. Project types never add application files during `align`.
 The scripted CLI covers `init` and `align`.
 Use `--design-context` or `"designContext": true` when the baseline should include the optional UI design workspace.
 

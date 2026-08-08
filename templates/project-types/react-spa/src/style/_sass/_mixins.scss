@@ -1,0 +1,230 @@
+// Mixins
+
+// Containers
+@mixin container($max-width) {
+    margin: 0 auto;
+    width: min(100%, $max-width) !important;
+}
+
+// Text
+@mixin text-gradient($color1, $color2, $degree: 90deg) {
+    background: linear-gradient($degree, $color1, $color2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+}
+
+// Scrollbar
+@mixin scrollbar {
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
+
+    ::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+    }
+
+    ::-webkit-scrollbar,
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+        background: var(--scrollbar-track-color);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb-color);
+        border: 3px solid var(--scrollbar-track-color);
+        background-clip: padding-box;
+        border-radius: 12px;
+    }
+
+    ::-webkit-scrollbar-track-piece {
+        display: none;
+    }
+}
+
+// Noappearance
+@mixin noappearance {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+// Placeholders
+@mixin placeholder {
+    &::placeholder {
+        color: var(--placeholder-color) !important;
+    }
+
+    &:-moz-placeholder {
+        color: var(--placeholder-color) !important;
+    }
+
+    &:-ms-input-placeholder {
+        color: var(--placeholder-color) !important;
+    }
+
+    &::-webkit-input-placeholder {
+        color: var(--placeholder-color) !important;
+    }
+
+    &:-moz-placeholder {
+        color: var(--placeholder-color) !important;
+    }
+
+    &::-moz-placeholder {
+        color: var(--placeholder-color) !important;
+    }
+
+    &:placeholder-shown {
+        text-overflow: ellipsis;
+    }
+}
+
+// Ellipsis
+@mixin ellipsis {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// Multiline ellipsis
+@mixin clamp($lines: 2) {
+    display: -webkit-box;
+    -webkit-line-clamp: $lines;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// Border radius
+@mixin rounded {
+    border-radius: var(--border-radius) !important;
+}
+
+// Selection
+@mixin selection($color, $back-color) {
+    ::-moz-selection {
+        background: $back-color !important;
+        color: $color;
+        text-shadow: none;
+    }
+
+    ::selection {
+        background: $back-color !important;
+        color: $color;
+        text-shadow: none;
+    }
+}
+
+@mixin unselectable {
+    user-select: none;
+    -moz-user-select: none;
+    -khtml-user-select: none;
+    -webkit-user-select: none;
+    -o-user-select: none;
+}
+
+@mixin selectable {
+    user-select: text !important;
+    -moz-user-select: text !important;
+    -khtml-user-select: text !important;
+    -webkit-user-select: text !important;
+    -o-user-select: text !important;
+}
+
+// Drag & drop
+@mixin undraggable {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    -ms-user-drag: none;
+}
+
+@mixin draggable {
+    -webkit-user-drag: auto !important;
+    -khtml-user-drag: auto !important;
+    -moz-user-drag: auto !important;
+    -o-user-drag: auto !important;
+    -ms-user-drag: auto !important;
+}
+
+// Flexbox
+@mixin flex($align: normal, $justify: normal, $direction: row, $wrap: nowrap, $content: normal, $inline: false) {
+    @if $inline {
+        display: inline-flex;
+    } @else {
+        display: flex;
+    }
+    @if $align != normal {
+        align-items: $align;
+    }
+    @if $justify != normal {
+        justify-content: $justify;
+    }
+    @if $content != normal {
+        align-content: $content;
+    }
+    @if $direction != row {
+        flex-direction: $direction;
+    }
+    @if $wrap != nowrap {
+        flex-wrap: $wrap;
+    }
+}
+@mixin h-flex {
+    @include flex(normal, normal, row);
+}
+@mixin v-flex {
+    @include flex(normal, normal, column);
+}
+@mixin flex-middle-center {
+    @include flex(center, center);
+}
+@mixin flex-center-middle { @include flex-middle-center; }
+@mixin h-flex-middle-center {
+    @include flex(center, center);
+}
+@mixin h-flex-center-middle { @include h-flex-middle-center; }
+
+@mixin v-flex-middle-center {
+    @include flex(center, center, column);
+}
+@mixin v-flex-center-middle { @include v-flex-middle-center; }
+
+@mixin flex-middle($direction: row) {
+    @if ($direction == row) {
+        @include flex(center);
+    } @else {
+        @include flex(normal, center, column);
+    }
+}
+@mixin h-flex-middle() {
+    @include flex-middle();
+}
+@mixin v-flex-middle() {
+    @include flex-middle(column);
+}
+@mixin flex-center($direction: row) {
+    @if ($direction == row) {
+        @include flex(normal, center);
+    } @else {
+        @include flex(center, normal, column);
+    }
+}
+@mixin h-flex-center() {
+    @include flex-center();
+}
+@mixin v-flex-center() {
+    @include flex-center(column);
+}
+@mixin flex-item-noresize {
+    flex: 0 0 auto;
+}
+@mixin flex-item-grow-only {
+    flex: 1 0 auto;
+}
+@mixin flex-item-shrink-only {
+    flex: 0 1 auto;
+}

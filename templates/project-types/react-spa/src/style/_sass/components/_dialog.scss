@@ -1,0 +1,93 @@
+@use "../icon";
+@use "../icons";
+@use "../mixins";
+
+
+.dialog-overlay {
+	background-color: rgba(0, 0, 0, 0.3);
+	position: fixed;
+	inset: 0;
+	animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+	z-index: 999;
+}
+
+.dialog-content {
+	background-color: var(--window-back-color);
+	border-radius: 10px;
+	box-shadow: var(--dialog-shadow);
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 90vw;
+	max-width: 500px;
+	max-height: 85vh;
+	padding: 30px 40px;
+	animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+	overflow: auto;
+	z-index: 9999999;
+}
+.dialog-content:focus {
+	outline: none;
+}
+
+.dialog-title {
+	margin: 0 0 20px 0;
+	color: var(--mauve-12);
+	font-size: 2.4rem;
+	font-weight: 600;
+}
+
+.help-link {
+    font-size: 1.3rem;
+
+	&:before {
+		font-size: 1.6rem;
+	}
+	
+}
+
+.dialog-desc {
+	margin-bottom: 20px;
+	font-size: 15px;
+	line-height: 1.5;
+}
+
+.dialog-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+
+    .icon:before{
+        font-size: 2rem;
+    }
+}
+.dialog-footer {
+    @include mixins.flex-middle;
+    margin-top: 30px;
+
+    .dialog-buttons {
+        @include mixins.flex-middle;
+        margin-left: auto;
+    }
+}
+
+@keyframes overlayShow {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes contentShow {
+	from {
+		opacity: 0;
+		transform: translate(-50%, -48%) scale(0.96);
+	}
+	to {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+}

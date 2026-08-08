@@ -53,6 +53,15 @@ project-name.code-workspace
 
 `design/` is optional and should exist only for UI work.
 
+### Application project types
+
+`init` can also apply an explicit application starter before it renders the durable Project Kit baseline.
+
+The first bundled project type is `react-spa`, a TypeScript, React, and Vite single-page application with routing, theming, error boundaries, static error pages, shared controls, Sass styles, and a reproducible lockfile.
+The starter intentionally loads the Inter typeface from Google Fonts at runtime, so generated projects should account for that external request in their privacy and Content Security Policy decisions.
+
+Project types are opt-in and are never inferred from `stack`. This keeps React frameworks, component libraries, browser extensions, and existing applications from receiving an incompatible SPA layout. Application starters are available only during `init`; `align` remains documentation-first and never injects product code.
+
 ## Core Principles
 
 - Humans own architecture, scope, final UI/UX direction, and acceptance.
@@ -178,6 +187,7 @@ node ./bin/project-kit.js init --target /absolute/path/to/repo --meta ./project-
 ```
 
 For UI-heavy projects, add `--design-context` to scaffold `.project/design/`.
+The scaffold writes dependency manifests and lockfiles but does not install dependencies automatically.
 
 ## Daily Feature Loop
 
@@ -256,6 +266,7 @@ Example metadata for the simulated project:
 
 ```json
 {
+    "projectType": "react-spa",
     "projectName": "acme-billing-web",
     "description": "Billing portal for small teams with explicit architecture and review gates",
     "originalPromptEnglish": "Build a browser-first billing portal for small teams with explicit architecture, durable feature briefs, and review gates.",
@@ -305,6 +316,7 @@ If the repository already exists, replace `init` with `align` and keep the same 
 
 ```json
 {
+    "projectType": "react-spa",
     "projectName": "project-kit",
     "description": "Architecture-first baseline for developer-led Codex work",
     "originalPromptEnglish": "Create a disciplined Codex-ready baseline for a TypeScript and React project with feature briefs and review gates.",
@@ -325,6 +337,7 @@ Required fields:
 
 Optional fields:
 
+- `projectType`: currently `react-spa`; applied only during `init`
 - `features`
 - `originalPromptEnglish`
 - `designContext`
@@ -332,6 +345,7 @@ Optional fields:
 
 When `init` runs without an existing `project-config.json`, the resolved metadata is written to `project-config.json` in the target repository so future runs can restart from it.
 When the config is derived from a free-form request, store the full request translated into English under `originalPromptEnglish`.
+If `projectType` is present, application-file collisions stop `init` before the Project Kit baseline is written. Use `--force` only when replacing those files is intentional.
 
 ## Development
 
@@ -339,7 +353,7 @@ When the config is derived from a free-form request, store the full request tran
 npm test
 ```
 
-The test suite covers the public CLI, automatic `project-config.json` loading, feature brief scaffolding, design context generation, and alignment behavior on existing repositories.
+The test suite covers the public CLI, automatic `project-config.json` loading, React SPA generation and collision handling, feature brief scaffolding, design context generation, and alignment behavior on existing repositories.
 
 ## Community
 

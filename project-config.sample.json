@@ -1,4 +1,5 @@
 {
+    "projectType": "react-spa",
     "projectName": "project-kit",
     "description": "Architecture-first baseline for developer-led Codex work",
     "originalPromptEnglish": "Create a disciplined Codex-ready baseline for a TypeScript and React project with feature briefs and review gates.",

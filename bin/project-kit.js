@@ -21,7 +21,7 @@ function buildHelpText() {
         "  project-kit scaffold [scaffold options]",
         "",
         "Examples:",
-        "  project-kit init --target /absolute/path/to/repo --project-name demo --description \"Architecture-first demo\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting",
+        "  project-kit init --target /absolute/path/to/repo --project-type react-spa --project-name demo --description \"Architecture-first demo\" --primary-language TypeScript --stack TypeScript,React,Vite --features authentication,reporting",
         "  project-kit feature create --name \"User authentication\"",
         "  project-kit feature update --slug user-authentication --status ready --approval \"User approved the session-boundary batch\" --batch \"Implement the session boundary\"",
         "  project-kit feature check --slug user-authentication",

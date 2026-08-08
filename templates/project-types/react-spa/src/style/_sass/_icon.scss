@@ -1,0 +1,60 @@
+@use "_icons";
+
+// Last update
+$t: 20260420; 
+
+@font-face {
+    font-family: 'icons';
+    src: url('../icons.woff2?t=#{$t}') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: block;
+}
+
+@mixin icon($content: "", $after: false) {
+
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+
+    &:after,
+    &:before {
+        font-family: 'icons' !important;
+        speak: never;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+        text-transform: none;
+        line-height: 1;
+
+        /* Enable Ligatures ================ */
+        letter-spacing: 0;
+        -webkit-font-feature-settings: "liga";
+        -moz-font-feature-settings: "liga=1";
+        -moz-font-feature-settings: "liga";
+        -ms-font-feature-settings: "liga" 1;
+        font-feature-settings: "liga";
+        -webkit-font-variant-ligatures: discretionary-ligatures;
+        font-variant-ligatures: discretionary-ligatures;
+
+        /* Better Font Rendering =========== */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;   
+    }
+
+    @if $content != "" {
+
+        @if $after {
+            &:after { content: $content; }
+        } @else {
+            &:before { content: $content; }
+        }
+    }
+}
+
+.icon,
+[class^="icon-"],
+[class*=" icon-"] {
+    @include icon;
+}

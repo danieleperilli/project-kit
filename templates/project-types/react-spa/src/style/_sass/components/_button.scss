@@ -1,0 +1,98 @@
+@use "../mixins";
+ 
+@mixin button-colors($prefix) {
+
+    color: var(--#{$prefix}-color) !important;
+    background-color: var(--#{$prefix}-back-color) !important;
+
+    &:not(.disabled):hover {
+        color: var(--#{$prefix}-hover-color) !important;
+        background-color: var(--#{$prefix}-hover-back-color) !important;
+    }
+
+    &:not(.disabled):active {
+        color: var(--#{$prefix}-hover-color) !important;
+        background: var(--#{$prefix}-hover-back-color) !important;
+        box-shadow: 0 0 0 4px var(--#{$prefix}-outline-focus-color);
+    }
+
+    &:focus {
+        box-shadow: 0 0 0 4px var(--#{$prefix}-outline-focus-color);
+    }
+
+    &:visited {
+        color: var(--#{$prefix}-color);
+        background: var(--#{$prefix}-back-color);
+    }
+}
+
+@mixin button($prefix: button) {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 20px;
+    font-family: var(--text-font);
+    font-weight: 600 !important;
+    font-size: 1.6rem;
+    line-height: 1.5;
+    @include mixins.noappearance;
+    border: none !important;
+    outline: 0;
+    text-align: center;
+    cursor: pointer;
+    @include mixins.rounded;
+    transition: background .2s;
+    white-space: nowrap;
+    user-select: none;
+
+    @include button-colors($prefix);
+
+    &.icon-only {
+        padding:6px;
+    }
+
+    &:hover {
+        text-decoration: none !important;
+    }
+
+    &:not(.disabled):active {
+        transform: translateY(1px);
+    }
+
+    &[disabled],
+    &.disabled, 
+    &[aria-disabled=true] {
+        cursor: default !important;
+        pointer-events: none;
+        opacity: .6;
+    }
+
+    .icon {
+        font-size: 1.1em;
+    }
+
+}
+
+button,
+.button,
+input[type=button] {
+   
+    @include button('button');
+
+    &.button-alt {
+        @include button('button-alt');
+    }
+
+    &.button-invert {
+        @include button('button-invert');
+    }
+
+    &.button-red {
+        @include button('button-del');
+    }
+
+    &.button-text {
+        @include button('button-text');
+    }
+}

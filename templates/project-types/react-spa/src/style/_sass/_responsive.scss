@@ -1,0 +1,27 @@
+// Media queries for responsive design
+
+@mixin show-if-smaller-than($width) {
+    display: none !important;
+    @media (width < $width){ 
+        & { display: inherit !important; } 
+    }
+}
+
+@mixin show-if-larger-than($width) {
+    display: none !important;
+    @media (width > $width){ 
+        & { display: inherit !important; } 
+    }
+}
+
+@mixin hide-if-smaller-than($width) {
+    @media (width < $width){ 
+        & { display: none !important; } 
+    }
+}
+
+@mixin hide-if-larger-than($width) {
+    @media (width > $width){ 
+        & { display: none !important; } 
+    }
+}

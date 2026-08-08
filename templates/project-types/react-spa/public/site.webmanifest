@@ -1,0 +1,11 @@
+{
+    "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+    "name": {{projectNameJson}},
+    "short_name": "{{manifestName}}",
+    "description": {{descriptionJson}},
+    "start_url": ".",
+    "theme_color": "#333",
+    "background_color": "#ffffff",
+    "display": "standalone",
+    "orientation": "any"
+}

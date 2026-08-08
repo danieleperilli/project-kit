@@ -60,6 +60,7 @@ test("prints help output through the public CLI wrapper", async () => {
     assert.match(result.stdout, /Project Kit Scaffold/);
     assert.match(result.stdout, /--mode <init\|align>/);
     assert.match(result.stdout, /--features <a,b,c>/);
+    assert.match(result.stdout, /--project-type <type>/);
     assert.match(result.stdout, /--design-context/);
     assert.match(result.stdout, /architecture-first/);
 });
@@ -185,6 +186,136 @@ test("init does not require feature brief metadata and persists project-config.j
     assert.deepEqual(projectConfig.features, []);
     assert.deepEqual(projectConfig.stack, ["TypeScript", "React"]);
     assert.equal(projectConfig.originalPromptEnglish, undefined);
+});
+
+test("init applies the bundled react-spa project type with rendered metadata", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+    const targetPath = path.join(tempDir, "react-demo");
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    const args = [
+        "--mode",
+        "init",
+        "--target",
+        targetPath,
+        "--project-type",
+        "react-spa",
+        "--project-name",
+        "React \"Demo\" <script>",
+        "--description",
+        "Bundled \"React\" application <starter>",
+        "--primary-language",
+        "TypeScript",
+        "--stack",
+        "TypeScript,React,Vite"
+    ];
+    const result = runScaffold(args, repositoryRoot);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Applied project type react-spa/);
+
+    const packageJson = JSON.parse(await fs.readFile(path.join(targetPath, "package.json"), "utf8")) as { name: string; version: string; description: string; scripts: Record<string, string>; };
+    const packageLock = JSON.parse(await fs.readFile(path.join(targetPath, "package-lock.json"), "utf8")) as { name: string; version: string; };
+    const projectConfig = JSON.parse(await fs.readFile(path.join(targetPath, "project-config.json"), "utf8")) as { projectType?: string; };
+    const constants = await fs.readFile(path.join(targetPath, "src", "constants.ts"), "utf8");
+    const indexHtml = await fs.readFile(path.join(targetPath, "index.html"), "utf8");
+    const readme = await fs.readFile(path.join(targetPath, "README.md"), "utf8");
+    const robots = await fs.readFile(path.join(targetPath, "public", "robots.txt"), "utf8");
+    const sourceFont = await fs.readFile(path.join(repositoryRoot, "templates", "project-types", "react-spa", "src", "style", "icons.woff2"));
+    const generatedFont = await fs.readFile(path.join(targetPath, "src", "style", "icons.woff2"));
+
+    assert.equal(packageJson.name, "react-demo-script");
+    assert.equal(packageJson.version, "0.1.0");
+    assert.equal(packageJson.description, "Bundled \"React\" application <starter>");
+    assert.equal(packageJson.scripts.build, "tsc -b && vite build");
+    assert.equal(packageLock.name, "react-demo-script");
+    assert.equal(packageLock.version, "0.1.0");
+    assert.equal(projectConfig.projectType, "react-spa");
+    assert.match(constants, /APP_NAME = "React \\"Demo\\" <script>"/);
+    assert.match(indexHtml, /<title>React &quot;Demo&quot; &lt;script&gt;<\/title>/);
+    assert.doesNotMatch(indexHtml, /noindex|icon\.png|maskable-icon/);
+    assert.match(readme, /## React SPA Starter/);
+    assert.match(readme, /npm ci/);
+    assert.match(readme, /Google Fonts/);
+    assert.match(robots, /Allow: \//);
+    assert.deepEqual(generatedFont, sourceFont);
+});
+
+test("react-spa init rejects application file collisions before writing the baseline", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+    const targetPath = path.join(tempDir, "existing-app");
+    const existingPackage = "{\"name\":\"existing-app\"}\n";
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    await fs.mkdir(targetPath, { recursive: true });
+    await fs.writeFile(path.join(targetPath, "package.json"), existingPackage);
+
+    const args = [
+        "--mode",
+        "init",
+        "--target",
+        targetPath,
+        "--project-type",
+        "react-spa",
+        "--project-name",
+        "Existing App",
+        "--description",
+        "Collision test",
+        "--primary-language",
+        "TypeScript",
+        "--stack",
+        "TypeScript,React,Vite"
+    ];
+    const result = runScaffold(args, repositoryRoot);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Cannot apply project type "react-spa"/);
+    assert.match(result.stderr, /package\.json/);
+    assert.equal(await fs.readFile(path.join(targetPath, "package.json"), "utf8"), existingPackage);
+    assert.equal(await pathExists(path.join(targetPath, "README.md")), false);
+    assert.equal(await pathExists(path.join(targetPath, "src", "App.tsx")), false);
+
+    const forcedResult = runScaffold([...args, "--force"], repositoryRoot);
+    const forcedPackage = JSON.parse(await fs.readFile(path.join(targetPath, "package.json"), "utf8")) as { name: string; scripts: Record<string, string>; };
+
+    assert.equal(forcedResult.status, 0, forcedResult.stderr);
+    assert.equal(forcedPackage.name, "existing-app");
+    assert.equal(forcedPackage.scripts.build, "tsc -b && vite build");
+    assert.equal(await pathExists(path.join(targetPath, "README.md")), true);
+    assert.equal(await pathExists(path.join(targetPath, "src", "App.tsx")), true);
+});
+
+test("align ignores a persisted project type and does not inject application files", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    await fs.writeFile(path.join(tempDir, "project-config.json"), JSON.stringify({
+        projectType: "react-spa",
+        projectName: "Aligned App",
+        description: "Existing repository alignment",
+        primaryLanguage: "TypeScript",
+        stack: ["TypeScript", "React"]
+    }, null, 4));
+    await fs.writeFile(path.join(tempDir, "package.json"), JSON.stringify({
+        name: "aligned-app",
+        version: "2.0.0"
+    }, null, 4));
+
+    const result = runScaffold(["--mode", "align", "--target", "."], tempDir);
+    const packageJson = JSON.parse(await fs.readFile(path.join(tempDir, "package.json"), "utf8")) as { version: string; };
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(packageJson.version, "2.0.0");
+    assert.equal(await pathExists(path.join(tempDir, "src", "App.tsx")), false);
 });
 
 test("align does not require feature brief names when no feature inventory exists", async (t) => {

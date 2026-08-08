@@ -6,6 +6,7 @@ const featureBrief = require("./feature-brief.ts") as typeof import("./feature-b
 interface IScaffoldOptions {
     mode: "init" | "align";
     target: string;
+    projectType: ProjectType | null;
     projectName: string;
     description: string;
     originalPromptEnglish: string | null;
@@ -21,14 +22,19 @@ interface IScaffoldOptions {
 interface ITemplateFile {
     templatePath: string;
     outputPath: string;
+    binary?: boolean;
 }
 
 interface ITemplateVariables {
     projectName: string;
+    projectNameHtml: string;
+    projectNameJson: string;
     description: string;
+    descriptionJson: string;
     currentDate: string;
     manifestName: string;
     projectVersion: string;
+    projectTypeSummary: string;
     stackSummary: string;
     featureIndexSummary: string;
     directorySummary: string;
@@ -46,6 +52,7 @@ interface IManifestDefinition {
 }
 
 interface IInitMetadata {
+    projectType?: unknown;
     projectName?: unknown;
     description?: unknown;
     originalPromptEnglish?: unknown;
@@ -57,6 +64,7 @@ interface IInitMetadata {
 }
 
 interface IProjectConfig {
+    projectType?: ProjectType;
     projectName: string;
     description: string;
     originalPromptEnglish?: string;
@@ -74,9 +82,14 @@ interface IFeatureDefinition {
 }
 
 type GitInitializationStatus = "not-requested" | "initialized" | "skipped-existing-worktree";
+type ProjectType = "react-spa";
 const DEFAULT_PROJECT_CONFIG_FILE_NAME = "project-config.json";
 const DEFAULT_INITIAL_PROJECT_VERSION = "0.1.0";
 const HELP_FLAGS = new Set(["--help", "-h"]);
+const PROJECT_TYPE_TEMPLATE_DIRECTORIES: Record<ProjectType, string> = {
+    "react-spa": path.join("templates", "project-types", "react-spa")
+};
+const BINARY_TEMPLATE_EXTENSIONS = new Set([".woff2"]);
 
 /**
  * Check whether the current CLI invocation should print the help output.
@@ -102,6 +115,7 @@ function buildHelpText(): string {
         "  --mode <init|align>           Select whether to scaffold a new repo or align an existing one.",
         "  --target <path>               Target repository path.",
         "  --meta <path>                 Optional JSON metadata file for init.",
+        "  --project-type <type>         Optional init-only application starter. Supported: react-spa.",
         "  --project-name <name>         Project name written into generated files.",
         "  --description <text>          Short human-facing project summary.",
         "  --primary-language <name>     Primary language used to select the manifest and style guide.",
@@ -114,6 +128,8 @@ function buildHelpText(): string {
         "",
         "Notes:",
         "  - `init` requires project name, description, primary language, and stack.",
+        "  - `react-spa` adds the bundled TypeScript, React, and Vite application starter during `init`.",
+        "  - Project types are ignored when loaded from metadata during `align`; `--project-type` is init-only.",
         "  - Feature briefs are optional during scaffold; add them later with `project-kit feature create`.",
         `  - If --meta is omitted, ${DEFAULT_PROJECT_CONFIG_FILE_NAME} is loaded automatically from the current working directory when present.`,
         `  - ${DEFAULT_PROJECT_CONFIG_FILE_NAME} may include \`originalPromptEnglish\` to preserve the full source request in English.`,
@@ -123,7 +139,7 @@ function buildHelpText(): string {
         "",
         "Examples:",
         "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-name demo --description \"Developer-led delivery baseline\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting",
-        "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-name demo-ui --description \"Architecture-first UI app\" --primary-language TypeScript --stack TypeScript,React --features onboarding,dashboard --design-context",
+        "  project-kit-scaffold --mode init --target /absolute/path/to/repo --project-type react-spa --project-name demo-ui --description \"Architecture-first UI app\" --primary-language TypeScript --stack TypeScript,React --features onboarding,dashboard --design-context",
         "  project-kit-scaffold --mode align --target /absolute/path/to/existing-repo --project-name existing-repo --description \"Aligned for review-gated Codex work\" --primary-language TypeScript --stack TypeScript,React --features authentication,reporting"
     ].join("\n");
 }
@@ -175,6 +191,7 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
     const metadataPath = await resolveMetadataPath(values.get("meta") ?? values.get("config"), cwd);
     const metadata = metadataPath ? await loadMetadataFile(metadataPath) : {};
     const target = path.resolve(cwd, targetArg);
+    const projectTypeValue = values.get("project-type") ?? readStringMetadata(metadata.projectType);
     const projectNameValue = values.get("project-name") ?? readStringMetadata(metadata.projectName);
     const descriptionValue = values.get("description") ?? readStringMetadata(metadata.description);
     const originalPromptEnglish = readStringMetadata(metadata.originalPromptEnglish) ?? null;
@@ -182,6 +199,12 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
     const stack = values.has("stack") ? parseList(values.get("stack")) : parseMetadataList(metadata.stack);
     const features = values.has("features") ? parseList(values.get("features")) : parseMetadataList(metadata.features);
     const projectVersion = await resolveProjectVersion(mode, target);
+
+    if (mode === "align" && values.has("project-type")) {
+        throw new Error("Unsupported \"--project-type\" argument during align. Project types can only be applied during init.");
+    }
+
+    const projectType = mode === "init" ? parseProjectType(projectTypeValue) : null;
 
     validateProjectVersion(projectVersion);
 
@@ -215,6 +238,7 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
     return {
         mode,
         target,
+        projectType,
         projectName,
         description,
         originalPromptEnglish,
@@ -226,6 +250,22 @@ async function parseArgs(argv: string[], cwd: string): Promise<IScaffoldOptions>
         initGit: flags.has("init-git") || metadata.initGit === true,
         force: flags.has("force")
     };
+}
+
+/**
+ * Parse and validate an optional project type.
+ * @param {string | undefined} value
+ */
+function parseProjectType(value: string | undefined): ProjectType | null {
+    if (!value) {
+        return null;
+    }
+
+    if (value === "react-spa") {
+        return value;
+    }
+
+    throw new Error(`Unsupported project type: ${value}. Supported project types: react-spa.`);
 }
 
 /**
@@ -666,6 +706,30 @@ function buildStackSummary(stack: string[]): string {
 }
 
 /**
+ * Render setup guidance for the selected application project type.
+ * @param {ProjectType | null} projectType
+ */
+function buildProjectTypeSummary(projectType: ProjectType | null): string {
+    if (projectType === "react-spa") {
+        return [
+            "## React SPA Starter",
+            "",
+            "Requires Node.js 22 or newer.",
+            "",
+            "```bash",
+            "npm ci",
+            "npm run dev",
+            "```",
+            "",
+            "Use `npm run lint` for linting and `npm run build` for a production build.",
+            "The starter loads the Inter typeface from Google Fonts at runtime."
+        ].join("\n");
+    }
+
+    return "";
+}
+
+/**
  * Build the feature file definitions for the current run.
  * @param {string[]} features
  */
@@ -721,13 +785,30 @@ function buildDirectorySummary(directories: string[]): string {
 function renderTemplate(template: string, variables: ITemplateVariables): string {
     return template
         .replaceAll("{{projectName}}", variables.projectName)
+        .replaceAll("{{projectNameHtml}}", variables.projectNameHtml)
+        .replaceAll("{{projectNameJson}}", variables.projectNameJson)
         .replaceAll("{{description}}", variables.description)
+        .replaceAll("{{descriptionJson}}", variables.descriptionJson)
         .replaceAll("{{currentDate}}", variables.currentDate)
         .replaceAll("{{manifestName}}", variables.manifestName)
         .replaceAll("{{projectVersion}}", variables.projectVersion)
+        .replaceAll("{{projectTypeSummary}}", variables.projectTypeSummary)
         .replaceAll("{{stackSummary}}", variables.stackSummary)
         .replaceAll("{{featureIndexSummary}}", variables.featureIndexSummary)
         .replaceAll("{{directorySummary}}", variables.directorySummary);
+}
+
+/**
+ * Escape untrusted metadata for an HTML text context.
+ * @param {string} value
+ */
+function escapeHtmlText(value: string): string {
+    return value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
 }
 
 /**
@@ -749,11 +830,84 @@ async function writeTemplate(templateRoot: string, targetRoot: string, file: ITe
 
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
 
+    if (file.binary) {
+        await fs.copyFile(templateSource, targetPath);
+        return true;
+    }
+
     const template = await fs.readFile(templateSource, "utf8");
     const rendered = renderTemplate(template, variables);
 
     await fs.writeFile(targetPath, rendered, "utf8");
     return true;
+}
+
+/**
+ * List the files included in a project type template.
+ * @param {string} templateRoot
+ * @param {string} relativeDirectory
+ */
+async function listProjectTypeTemplateFiles(templateRoot: string, relativeDirectory = ""): Promise<ITemplateFile[]> {
+    const directoryPath = path.join(templateRoot, relativeDirectory);
+    const entries = await fs.readdir(directoryPath, { withFileTypes: true });
+    const files: ITemplateFile[] = [];
+
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+        const relativePath = path.join(relativeDirectory, entry.name);
+
+        if (entry.isDirectory()) {
+            files.push(...await listProjectTypeTemplateFiles(templateRoot, relativePath));
+            continue;
+        }
+
+        if (entry.isFile()) {
+            files.push({
+                templatePath: relativePath,
+                outputPath: relativePath,
+                binary: BINARY_TEMPLATE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())
+            });
+        }
+    }
+
+    return files;
+}
+
+/**
+ * Render the selected project type after checking that init will not create a partial application.
+ * @param {string} skillRoot
+ * @param {IScaffoldOptions} options
+ * @param {ITemplateVariables} variables
+ */
+async function writeProjectTypeTemplate(skillRoot: string, options: IScaffoldOptions, variables: ITemplateVariables): Promise<number> {
+    if (!options.projectType) {
+        return 0;
+    }
+
+    const templateRoot = path.join(skillRoot, PROJECT_TYPE_TEMPLATE_DIRECTORIES[options.projectType]);
+    const files = await listProjectTypeTemplateFiles(templateRoot);
+    const collisions: string[] = [];
+
+    if (!options.force) {
+        for (const file of files) {
+            if (await pathExists(path.join(options.target, file.outputPath))) {
+                collisions.push(file.outputPath);
+            }
+        }
+    }
+
+    if (collisions.length > 0) {
+        throw new Error(`Cannot apply project type "${options.projectType}" because these files already exist: ${collisions.join(", ")}. Use --force to overwrite them.`);
+    }
+
+    let writtenFiles = 0;
+
+    for (const file of files) {
+        if (await writeTemplate(templateRoot, options.target, file, variables, options.force)) {
+            writtenFiles += 1;
+        }
+    }
+
+    return writtenFiles;
 }
 
 /**
@@ -852,6 +1006,10 @@ function buildProjectConfig(options: IScaffoldOptions): IProjectConfig {
 
     if (options.originalPromptEnglish) {
         projectConfig.originalPromptEnglish = options.originalPromptEnglish;
+    }
+
+    if (options.projectType) {
+        projectConfig.projectType = options.projectType;
     }
 
     return projectConfig;
@@ -988,10 +1146,14 @@ async function buildTemplateVariables(options: IScaffoldOptions, featureDefiniti
 
     return {
         projectName: options.projectName,
+        projectNameHtml: escapeHtmlText(options.projectName),
+        projectNameJson: JSON.stringify(options.projectName),
         description: options.description,
+        descriptionJson: JSON.stringify(options.description),
         currentDate: new Date().toISOString().slice(0, 10),
         manifestName: buildManifestName(options.projectName),
         projectVersion: options.projectVersion,
+        projectTypeSummary: buildProjectTypeSummary(options.projectType),
         stackSummary: buildStackSummary(options.stack),
         featureIndexSummary: buildFeatureIndexSummary(featureDefinitions),
         directorySummary: buildDirectorySummary(directories)
@@ -1038,15 +1200,18 @@ async function main(): Promise<void> {
     const options = await parseArgs(argv, cwd);
 
     await ensureTargetRoot(options);
-    await ensureBaselineDirectories(options);
 
     const skillRoot = path.resolve(__dirname, "..");
     const featureDefinitions = buildFeatureDefinitions(options.features);
+    const projectTypeVariables = await buildTemplateVariables(options, featureDefinitions);
+    let writtenFiles = await writeProjectTypeTemplate(skillRoot, options, projectTypeVariables);
+
+    await ensureBaselineDirectories(options);
+
     const variables = await buildTemplateVariables(options, featureDefinitions);
     const templateFiles = buildTemplateFiles(options);
     const styleGuides = detectStyleGuides(options.primaryLanguage, options.stack);
     const manifestDefinition = resolveManifest(options.primaryLanguage, options.stack);
-    let writtenFiles = 0;
 
     for (const file of templateFiles) {
         const wasWritten = await writeTemplate(skillRoot, options.target, file, variables, options.force);
@@ -1064,7 +1229,7 @@ async function main(): Promise<void> {
         writtenFiles += 1;
     }
 
-    const manifestWasWritten = await writeProjectManifest(options.target, manifestDefinition, variables, options.primaryLanguage, options.force);
+    const manifestWasWritten = options.projectType ? false : await writeProjectManifest(options.target, manifestDefinition, variables, options.primaryLanguage, options.force);
 
     if (manifestWasWritten) {
         writtenFiles += 1;
@@ -1086,6 +1251,10 @@ async function main(): Promise<void> {
 
     const gitInitializationStatus = initializeGitRepository(options);
     const output = [`Scaffolded ${writtenFiles} files in ${options.target}.`];
+
+    if (options.projectType) {
+        output.push(`Applied project type ${options.projectType}.`);
+    }
 
     if (gitInitializationStatus === "initialized") {
         output.push("Initialized a Git repository.");

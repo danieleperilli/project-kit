@@ -1,0 +1,6 @@
+@use "mixins";
+
+.page {
+    @include mixins.container(var(--max-content-width));
+    padding: 40px 20px;
+}

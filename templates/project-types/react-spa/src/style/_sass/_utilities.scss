@@ -1,0 +1,186 @@
+@use "icon";
+@use "icons";
+@use "mixins";
+
+// Utilities
+.accent {
+    background-color: var(--accent-color);
+    color: var(--accent-contrast-color);
+}
+.hidden {
+    display: none;
+}
+.click {
+    &:active {
+        transform: translateY(1px);
+    }
+}
+.n {
+    clear: both;
+}
+
+.fl {
+    float: left;
+}
+
+.fr {
+    float: right;
+}
+.ctr {
+    text-align: center;
+}
+
+.left {
+    text-align: left;
+}
+.aleft,
+.autoleft {
+    margin-left: auto;
+}
+
+.right {
+    text-align: right;
+}
+
+.aright, 
+.autoright {
+    margin-right: auto;
+}
+
+.atop,
+.autotop {
+    margin-top: auto;
+}
+
+.abottom,
+.autobottom {
+    margin-top: auto;
+}
+
+.xauto {
+    margin: 0 auto;
+}
+.yauto {
+    margin: auto 0;
+}
+
+.uc {
+    text-transform: uppercase;
+}
+
+.lc {
+    text-transform: lowercase;
+}
+
+.blur {
+    filter: blur(.17em);
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+.noflow {
+    overflow: hidden;
+}
+
+.wide {
+    width: 100%;
+}
+
+.cols {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 20px;
+    overflow: hidden;
+
+    .col {
+        flex: 1 1 50%;
+    }
+}
+
+.vmiddle {
+    height: 100%;
+    @include mixins.v-flex-middle-center;
+}
+.danger {
+    color: var(--danger) !important;
+}
+.glossy {
+    background-color: rgba(246, 248, 250, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+
+    /*@include if-dark {
+        background-color: rgba(0, 0, 0, 0.8);
+    }*/
+}
+.included {
+    @include icon.icon(icons.$icon-check-circle);
+    &:before {
+        color: var(--success);
+        font-size: 1.2em;
+    }
+}
+.not-included {
+    @include icon.icon(icons.$icon-x-circle);
+    &:before {
+        color: var(--danger);
+        font-size: 1.2em;
+    }
+}
+.rounded {
+    @include mixins.rounded;
+}
+
+.ellipsis {
+    @include mixins.ellipsis;
+}
+
+.unselectable {
+    @include mixins.unselectable;
+}
+
+.selectable {
+    @include mixins.selectable;
+}
+
+.undraggable {
+    @include mixins.undraggable;
+}
+
+.draggable {
+    @include mixins.draggable;
+}
+
+.h-flex {
+    @include mixins.h-flex;
+}
+.v-flex {
+    @include mixins.v-flex;
+}
+.h-flex-middle-center {
+    @include mixins.h-flex-middle-center;
+}
+.h-flex-center-middle {
+    @include mixins.h-flex-center-middle;
+}
+.v-flex-middle-center {
+    @include mixins.v-flex-middle-center;
+}
+.v-flex-center-middle {
+    @include mixins.v-flex-center-middle;
+}
+.h-flex-middle {
+    @include mixins.h-flex-middle;
+}
+.v-flex-middle {
+    @include mixins.v-flex-middle;
+}
+.h-flex-center {
+    @include mixins.h-flex-center;
+}
+.v-flex-center {
+    @include mixins.v-flex-center;
+}

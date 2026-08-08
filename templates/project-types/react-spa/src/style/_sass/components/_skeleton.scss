@@ -1,0 +1,101 @@
+@keyframes react-loading-skeleton {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.react-loading-skeleton {
+    --base-color: var(--skeleton-color);
+    --highlight-color: var(--skeleton-highlight-color);
+    ;
+    --animation-duration: 1.5s;
+    --animation-direction: normal;
+    --pseudo-element-display: block;
+    /* Enable animation */
+
+    background-color: var(--base-color);
+
+    width: 100%;
+    border-radius: var(--border-radius);
+    display: inline-flex;
+    line-height: 1;
+
+    position: relative;
+    user-select: none;
+    overflow: hidden;
+}
+
+.alt-skeleton {
+    .react-loading-skeleton {
+        --base-color: var(--alt-skeleton-color);
+        --highlight-color: var(--alt-skeleton-highlight-color);
+    }
+}
+
+.react-loading-skeleton::after {
+    content: ' ';
+    display: var(--pseudo-element-display);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background-repeat: no-repeat;
+    background-image: var(--custom-highlight-background,
+            linear-gradient(90deg,
+                var(--base-color) 0%,
+                var(--highlight-color) 50%,
+                var(--base-color) 100%));
+    transform: translateX(-100%);
+
+    animation-name: react-loading-skeleton;
+    animation-direction: var(--animation-direction);
+    animation-duration: var(--animation-duration);
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion) {
+    .react-loading-skeleton {
+        --pseudo-element-display: none;
+        /* Disable animation */
+    }
+}
+
+
+.cards-skeleton {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+
+    .perRow1 {
+        width: 100%;
+    }
+
+    .perRow2 {
+        width: calc(50% - 0.5rem);
+    }
+
+    .perRow3 {
+        width: calc(33.333% - 1rem);
+    }
+
+    .perRow4 {
+        width: calc(25% - 0.75rem);
+    }
+
+    .perRow5 {
+        width: calc(20% - 0.8rem);
+    }
+}
+
+.list-skeleton {
+
+    &.horizontal {
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+}

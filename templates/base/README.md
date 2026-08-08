@@ -14,6 +14,8 @@
 - New repositories use `src/` for application code and `tests/` for automated tests by default.
 - Existing repositories should keep their established layout when this baseline is added via alignment.
 
+{{projectTypeSummary}}
+
 ## Delivery Workflow
 
 1. Capture or refine the system shape in `.project/overview.md`, `.project/architecture.md`, and `.project/constraints.md`.
