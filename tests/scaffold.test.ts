@@ -69,7 +69,7 @@ test("prints help output through the top-level project-kit CLI", async () => {
 
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Project Kit CLI/);
-    assert.match(result.stdout, /project-kit feature <create\|update\|list>/);
+    assert.match(result.stdout, /project-kit feature <create\|update\|check\|list>/);
     assert.match(result.stdout, /project-kit init/);
 });
 
@@ -120,9 +120,14 @@ test("loads project-config.json automatically during init", async (t) => {
     assert.equal(projectConfig.originalPromptEnglish, "Build a browser-only tool that creates and edits SVG maps for Power BI.");
     assert.deepEqual(projectConfig.features, ["User authentication", "Usage reporting"]);
     assert.match(agents, /## Context Loading/);
+    assert.match(agents, /default `project_doc_max_bytes` limit of 32 KiB \(32,768 bytes\)/);
+    assert.ok(Buffer.byteLength(agents, "utf8") < 32768, "Generated AGENTS.md must remain below Codex's default 32 KiB project instruction limit.");
     assert.match(agents, /For non-trivial implementation work, also read `\.project\/overview\.md`, `\.project\/architecture\.md`, and `\.project\/constraints\.md` before editing/);
     assert.match(agents, /only `Unreleased` unless history is requested/);
     assert.match(agents, /## Anti-Overengineering Gate/);
+    assert.match(agents, /## Delivery Readiness/);
+    assert.match(agents, /project-kit feature check --slug <feature-slug>/);
+    assert.match(agents, /functional provisional UI for validation/);
     assert.match(agents, /Security and correctness take precedence over simplicity/);
     assert.doesNotMatch(agents, /## Read Order/);
     assert.match(contributing, /## Context Loading/);
@@ -130,9 +135,16 @@ test("loads project-config.json automatically during init", async (t) => {
     assert.match(contributing, /`CODE_STYLE\.md`: before source edits, if present/);
     assert.match(readme, /review-gated/);
     assert.match(reviewChecklist, /## Simplicity And Necessity/);
+    assert.match(reviewChecklist, /## Readiness And Batch Contract/);
+    assert.match(reviewChecklist, /actual local user journey exercised/);
     assert.match(reviewChecklist, /smallest change that fully satisfies the current requirement/);
     assert.match(featureIndex, /\[User authentication\]\(\.\/user-authentication\.md\)/);
     assert.match(featureIndex, /\[Usage reporting\]\(\.\/usage-reporting\.md\)/);
+    assert.match(featureBrief, /## Readiness\n\n- Status: discovery/);
+    assert.match(featureBrief, /## Current batch/);
+    assert.match(featureBrief, /## Change contract/);
+    assert.match(featureBrief, /## Local verification/);
+    assert.match(featureBrief, /## Required follow-up tasks/);
     assert.match(featureBrief, /## Acceptance criteria/);
     assert.match(featureBrief, /## Risks and review focus/);
 });
@@ -168,7 +180,7 @@ test("init does not require feature brief metadata and persists project-config.j
     const featureEntries = await fs.readdir(path.join(targetPath, ".project", "features"));
     const projectConfig = JSON.parse(await fs.readFile(path.join(targetPath, "project-config.json"), "utf8")) as { features: string[]; stack: string[]; originalPromptEnglish?: string; };
 
-    assert.match(featureIndex, /Add one file per implementation-ready feature brief as the architecture becomes clear/);
+    assert.match(featureIndex, /Create a discovery brief just in time when the next feature is selected/);
     assert.deepEqual(featureEntries.sort(), ["index.md"]);
     assert.deepEqual(projectConfig.features, []);
     assert.deepEqual(projectConfig.stack, ["TypeScript", "React"]);
@@ -209,7 +221,7 @@ test("align does not require feature brief names when no feature inventory exist
 
     const featureIndex = await fs.readFile(path.join(targetPath, ".project", "features", "index.md"), "utf8");
 
-    assert.match(featureIndex, /Add one file per implementation-ready feature brief as the architecture becomes clear/);
+    assert.match(featureIndex, /Create a discovery brief just in time when the next feature is selected/);
 });
 
 test("align does not require features when the new feature index already exists", async (t) => {
@@ -396,6 +408,7 @@ test("feature create adds a new brief and refreshes the index", async (t) => {
     const featureIndex = await fs.readFile(path.join(targetPath, ".project", "features", "index.md"), "utf8");
 
     assert.match(featureBrief, /# Billing dashboard/);
+    assert.match(featureBrief, /## Readiness\n\n- Status: discovery/);
     assert.match(featureBrief, /- Local assets: billing-dashboard\.png; billing-dashboard\.annotated\.png/);
     assert.match(featureBrief, /- Shows invoice totals/);
     assert.match(featureBrief, /- Shows overdue state/);
@@ -467,4 +480,258 @@ test("feature update can rename a brief and list reflects the new slug", async (
     assert.match(featureBrief, /- Add auth controller tests/);
     assert.match(featureIndex, /\[Authentication core\]\(\.\/authentication-core\.md\)/);
     assert.match(listResult.stdout, /authentication-core :: Authentication core/);
+});
+
+test("feature update migrates legacy briefs into the delivery lifecycle", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+    const targetPath = path.join(tempDir, "legacy-feature-demo");
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    const initResult = runScaffold([
+        "--mode",
+        "init",
+        "--target",
+        targetPath,
+        "--project-name",
+        "Legacy Feature Demo",
+        "--description",
+        "Init for legacy feature migration testing",
+        "--primary-language",
+        "TypeScript",
+        "--stack",
+        "TypeScript"
+    ], repositoryRoot);
+
+    assert.equal(initResult.status, 0, initResult.stderr);
+
+    const featurePath = path.join(targetPath, ".project", "features", "legacy-feature.md");
+
+    await fs.writeFile(featurePath, [
+        "# Legacy feature",
+        "",
+        "## Goal",
+        "",
+        "- Problem solved: Legacy briefs have no delivery lifecycle",
+        "- Primary outcome: Existing work can adopt the readiness gate",
+        "",
+        "## User-visible behavior",
+        "",
+        "- No user-visible change",
+        "",
+        "## In scope",
+        "",
+        "- Feature brief migration",
+        "",
+        "## Out of scope",
+        "",
+        "- Product code changes",
+        "",
+        "## Modules involved",
+        "",
+        "- Project documentation",
+        "",
+        "## Design references",
+        "",
+        "- Local assets:",
+        "- Flow notes:",
+        "- Remote sources:",
+        "",
+        "## Acceptance criteria",
+        "",
+        "- Existing brief content is preserved",
+        "",
+        "## Test expectations",
+        "",
+        "- Run the Project Kit test suite",
+        "",
+        "## Risks and review focus",
+        "",
+        "- Legacy markdown compatibility",
+        ""
+    ].join("\n"), "utf8");
+
+    const updateResult = runProjectKit([
+        "feature",
+        "update",
+        "--target",
+        targetPath,
+        "--slug",
+        "legacy-feature",
+        "--status",
+        "ready",
+        "--approval",
+        "User approved the legacy migration batch",
+        "--open-decisions",
+        "none",
+        "--batch",
+        "Migrate the legacy brief structure",
+        "--persistence-impact",
+        "None",
+        "--api-impact",
+        "None",
+        "--config-impact",
+        "None",
+        "--ui-impact",
+        "None",
+        "--ui-maturity",
+        "none",
+        "--verification",
+        "Run the readiness check against the migrated brief"
+    ], repositoryRoot);
+    const checkResult = runProjectKit([
+        "feature",
+        "check",
+        "--target",
+        targetPath,
+        "--slug",
+        "legacy-feature"
+    ], repositoryRoot);
+    const migratedBrief = await fs.readFile(featurePath, "utf8");
+
+    assert.equal(updateResult.status, 0, updateResult.stderr);
+    assert.equal(checkResult.status, 0, checkResult.stderr);
+    assert.equal(migratedBrief.match(/^## Readiness$/gm)?.length, 1);
+    assert.equal(migratedBrief.match(/^## Change contract$/gm)?.length, 1);
+    assert.match(migratedBrief, /- Problem solved: Legacy briefs have no delivery lifecycle/);
+    assert.match(migratedBrief, /- UI maturity: none/);
+});
+
+test("feature check enforces readiness and a refinement task for provisional UI", async (t) => {
+    const tempDir = await createTemporaryDirectory();
+    const targetPath = path.join(tempDir, "feature-readiness-demo");
+
+    t.after(async () => {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    const initResult = runScaffold([
+        "--mode",
+        "init",
+        "--target",
+        targetPath,
+        "--project-name",
+        "Feature Readiness Demo",
+        "--description",
+        "Init for feature readiness testing",
+        "--primary-language",
+        "TypeScript",
+        "--stack",
+        "TypeScript,React"
+    ], repositoryRoot);
+
+    assert.equal(initResult.status, 0, initResult.stderr);
+
+    const createResult = runProjectKit([
+        "feature",
+        "create",
+        "--target",
+        targetPath,
+        "--name",
+        "Usage dashboard"
+    ], repositoryRoot);
+    const discoveryCheck = runProjectKit([
+        "feature",
+        "check",
+        "--target",
+        targetPath,
+        "--slug",
+        "usage-dashboard"
+    ], repositoryRoot);
+
+    assert.equal(createResult.status, 0, createResult.stderr);
+    assert.equal(discoveryCheck.status, 1);
+    assert.match(discoveryCheck.stderr, /Set Readiness status to ready/);
+
+    const readyUpdate = runProjectKit([
+        "feature",
+        "update",
+        "--target",
+        targetPath,
+        "--slug",
+        "usage-dashboard",
+        "--status",
+        "ready",
+        "--approval",
+        "User approved the functional validation batch",
+        "--open-decisions",
+        "none",
+        "--problem",
+        "Users cannot inspect current usage",
+        "--outcome",
+        "Users can validate usage data locally",
+        "--behavior",
+        "Users can open the usage dashboard",
+        "--in-scope",
+        "Usage summary",
+        "--out-of-scope",
+        "Historical exports",
+        "--batch",
+        "Build the functional usage dashboard",
+        "--modules",
+        "Usage UI",
+        "--persistence-impact",
+        "None",
+        "--api-impact",
+        "None",
+        "--config-impact",
+        "None",
+        "--ui-impact",
+        "Add a functional dashboard for validation",
+        "--ui-maturity",
+        "provisional",
+        "--acceptance",
+        "Usage summary is visible",
+        "--tests",
+        "Add dashboard rendering tests",
+        "--verification",
+        "Start locally and open the usage dashboard",
+        "--risks",
+        "Provisional visual hierarchy"
+    ], repositoryRoot);
+    const missingRefinementCheck = runProjectKit([
+        "feature",
+        "check",
+        "--target",
+        targetPath,
+        "--slug",
+        "usage-dashboard"
+    ], repositoryRoot);
+
+    assert.equal(readyUpdate.status, 0, readyUpdate.stderr);
+    assert.equal(missingRefinementCheck.status, 1);
+    assert.match(missingRefinementCheck.stderr, /Add a final UI refinement task/);
+
+    const refinementUpdate = runProjectKit([
+        "feature",
+        "update",
+        "--target",
+        targetPath,
+        "--slug",
+        "usage-dashboard",
+        "--follow-ups",
+        "Refine the dashboard from the approved visual direction"
+    ], repositoryRoot);
+    const readyCheck = runProjectKit([
+        "feature",
+        "check",
+        "--target",
+        targetPath,
+        "--slug",
+        "usage-dashboard"
+    ], repositoryRoot);
+    const readyList = runProjectKit([
+        "feature",
+        "list",
+        "--target",
+        targetPath
+    ], repositoryRoot);
+
+    assert.equal(refinementUpdate.status, 0, refinementUpdate.stderr);
+    assert.equal(readyCheck.status, 0, readyCheck.stderr);
+    assert.match(readyCheck.stdout, /ready for one implementation batch/);
+    assert.equal(readyList.status, 0, readyList.stderr);
+    assert.match(readyList.stdout, /usage-dashboard :: Usage dashboard \[ready\]/);
 });

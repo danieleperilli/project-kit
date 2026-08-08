@@ -4,6 +4,8 @@
 
 Do not read every project document by default.
 
+Keep the combined project instruction chain below Codex's default `project_doc_max_bytes` limit of 32 KiB (32,768 bytes). Keep this root file concise and place task-specific context in `.project/` documents that are loaded only when relevant.
+
 Always start with task files. For non-trivial implementation work, also read `.project/overview.md`, `.project/architecture.md`, and `.project/constraints.md` before editing.
 
 Load additional context only when it applies:
@@ -38,10 +40,21 @@ Load additional context only when it applies:
 
 ## Operating Model
 
-- Humans own architecture, scope, UI/UX decisions, and acceptance.
+- Humans own architecture, scope, final UI/UX direction, and acceptance.
 - Treat `.project/overview.md`, `.project/architecture.md`, `.project/constraints.md`, and the relevant feature briefs as the primary execution context.
-- Use small implementation batches that a human can review comfortably.
+- Use one ready, risk-focused implementation batch at a time.
 - Do not mark a non-trivial batch as truly done until a human review has happened.
+
+## Delivery Readiness
+
+- Every non-trivial feature or behavior change requires a relevant feature brief. Small maintenance changes may use the user request as the batch contract when no durable feature behavior changes.
+- A newly created feature brief defaults to `discovery`, not implementation authorization.
+- Do not edit product code while the brief is in `discovery`, contains open decisions, or has an incomplete change contract.
+- Only the user can authorize a transition to `ready`. The agent may draft the contract but must record concrete approval evidence and must not self-approve it.
+- Before implementation, run `project-kit feature check --slug <feature-slug>` when the CLI is available. If it fails, refine the brief or ask for the missing decision.
+- The ready brief must name exactly one current batch and make persistence, API, configuration/resource, UI, tests, local verification, and review risks explicit. Use `None` rather than leaving an impact ambiguous.
+- Apply the anti-overengineering gate while defining the batch, not only after code has been written.
+- Split a batch that crosses several risk surfaces unless the cross-layer slice is required for one independently verifiable outcome and the user explicitly accepts that scope.
 
 ## Security First Principle
 
@@ -70,7 +83,7 @@ Rules:
 
 ## Multi-Agent Discipline
 
-For non-trivial changes, follow this sequence even if the work stays inside a single agent:
+For non-trivial changes, follow this sequence:
 
 1. Explorer
    - Analyze entry points and trust boundaries.
@@ -84,7 +97,7 @@ For non-trivial changes, follow this sequence even if the work stays inside a si
    - Classify issues: High / Medium / Low.
    - Suggest minimal hardening and test cases.
 
-Do not skip the reviewer phase for complex changes.
+For persistence, security, architecture, or cross-layer changes, use an independent fresh-context Reviewer subagent when available. If agents are unavailable or not authorized, perform a separate local Reviewer pass and disclose that limitation. Do not skip the reviewer phase for complex changes.
 
 ## General Code Principles
 
@@ -106,7 +119,7 @@ Do not skip the reviewer phase for complex changes.
 
 ## Anti-Overengineering Gate
 
-Apply this gate during the Reviewer phase.
+Apply this gate during both batch planning and the Reviewer phase.
 
 - Prefer the smallest change that fully satisfies the current requirement.
 - Do not add abstractions, wrappers, configuration, fallback paths, extension points, or defensive layers for hypothetical future needs.
@@ -118,9 +131,10 @@ Apply this gate during the Reviewer phase.
 ## Design Context
 
 - If `.project/design/` exists, treat it as the authoritative source for UI implementation context.
-- UI/UX decisions, visual hierarchy, and mockups remain human-owned.
+- Final UI/UX direction, visual hierarchy, and mockups remain human-owned.
 - Codex should implement the provided design context, not invent a different interface.
 - When the mockups are ambiguous, record the assumption explicitly or ask for clarification.
+- When no precise design exists, Codex may build a functional provisional UI for validation. Mark its UI maturity as `provisional` and create a final UI refinement task before treating the feature as complete. Under Control Room, enqueue it as a dependent top-level task and record its task ID in the feature brief.
 - Treat `.annotated` assets as explanatory overlays, not as product UI.
 
 ## Testing Policy
@@ -129,6 +143,7 @@ Apply this gate during the Reviewer phase.
 - Treat the `Core Functionality` section in `.project/overview.md` as the source of truth for behavior that should be protected by unit tests.
 - Add or update unit tests when a change affects core functionality, security-sensitive behavior, data integrity, external integrations, or a previously broken behavior.
 - Prefer a small number of high-signal tests over many low-value tests.
+- Exercise the real local user journey for every non-trivial batch. Confirm setup, configuration, resource loading, integrations, and visible UI states when they are part of the change; a green test suite alone is not sufficient evidence.
 - For new repositories, place automated tests under `tests/` by default.
 - If the repository already has a different testing convention, follow the existing structure instead of forcing `tests/`.
 - If no test is added for a risky change, explain why.
@@ -139,6 +154,7 @@ Apply this gate during the Reviewer phase.
 - Do not duplicate code contracts or directory listings in docs.
 - Treat `.project/features/index.md` as the map of the feature brief directory.
 - Treat the relevant `.project/features/*.md` file as the source of truth for feature scope, acceptance, and review focus.
+- Keep readiness, current batch, change contract, verification, and required follow-up tasks aligned with the implementation.
 - Update `.project/constraints.md` when durable product, technical, security, or delivery constraints change.
 - If `.project/design/` exists, keep asset references, flow notes, and remote design sources aligned with the implementation.
 - Append a dated note to `.project/decisions.md` when a technical or workflow decision becomes durable.
@@ -151,6 +167,8 @@ Apply this gate during the Reviewer phase.
 - Before handing off a non-trivial batch, read `.project/review-checklist.md`.
 - Call out mismatches against architecture, constraints, feature briefs, or design references explicitly.
 - Flag any missing tests or unresolved ambiguity instead of hiding them behind optimistic language.
+- Enumerate actual persistence, API, configuration/resource, and UI changes in the handoff, including explicit `None` entries.
+- Report exact automated checks and local user-journey verification performed, plus anything that could not be verified.
 
 ## Git Workflow
 

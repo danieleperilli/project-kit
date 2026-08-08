@@ -1,6 +1,6 @@
 ---
 name: project-kit
-description: Bootstrap or align a repository for an architecture-first, developer-led Codex workflow with feature briefs, optional design context, and review gates.
+description: Bootstrap, align, or deliver changes in a repository through an architecture-first, developer-led Codex workflow with ready feature briefs, explicit batch contracts, optional design context, runtime verification, and review gates.
 ---
 
 # Project Kit
@@ -9,6 +9,7 @@ Use this skill when the user wants to:
 
 - bootstrap a new repository with a disciplined Codex workflow;
 - align an existing repository around architecture, constraints, feature briefs, and review gates;
+- deliver a non-trivial change in a repository already initialized with Project Kit;
 - keep UI design human-owned while still using Codex to implement UI;
 - avoid heavyweight Agile rituals while preserving delivery discipline;
 - reduce ambiguity before implementation starts.
@@ -26,6 +27,8 @@ Classify the request before making changes:
    Create a new baseline for a repository that does not yet have durable project guidance.
 2. `align`
    Inspect an existing repository and add only the missing files that improve developer-led Codex collaboration.
+3. `deliver`
+   Prepare and execute exactly one ready implementation batch, verify its real user journey, and hand it to an independent review pass.
 
 ## Core Rules
 
@@ -60,7 +63,7 @@ Classify the request before making changes:
 - Avoid placeholder noise. Prompts like "Primary outcome:" are acceptable; `TODO` filler is not.
 - Repository configuration overrides project style guides. Treat project style files as defaults, not as higher-precedence truth.
 - Prefer the smallest change that fully satisfies the current requirement.
-- Treat anti-overengineering as a Reviewer responsibility rather than a mandatory additional agent or process phase.
+- Apply anti-overengineering before implementation while defining the batch and again during review.
 - Do not add abstractions, configuration, fallback paths, extension points, or defensive layers for hypothetical future needs.
 - Keep necessary security, correctness, data-integrity, and trust-boundary protections even when simplifying a change.
 
@@ -108,6 +111,8 @@ If the user asks for `init` without enough metadata after reading `project-confi
 If `project-config.json` does not exist and you collect `init` metadata in chat, write the resolved metadata to `project-config.json` in the target repository during `init` so the user can restart from it later.
 When the config is derived from a free-form user request, persist the full request translated into English under `originalPromptEnglish` so the original intent remains recoverable.
 Treat feature briefs as optional during `init`; users can add them later with `project-kit feature create`.
+Feature names supplied during `init` are discovery seeds, not implementation authorization. Keep generated briefs in `discovery` until their decisions and batch contract are explicit.
+Do not turn brainstorming, broad prompts, or possible roadmap items into detailed future briefs unless the user explicitly asks for them.
 If the user does not provide `initGit`, ask whether Git should be initialized.
 For `align`, reuse `.project/features/index.md` when it already captures the feature directory.
 If the user provides metadata values in non-English, keep the conversation in the user's language but translate all file-facing text to English before scaffolding.
@@ -141,17 +146,22 @@ Use these files to capture stable project truth:
 
 ### 3. Define feature briefs
 
-Use `.project/features/` for implementation-ready feature briefs.
+Use `.project/features/` for just-in-time feature briefs. A newly created brief defaults to `discovery`; it becomes implementation-ready only after its status is `ready` and `project-kit feature check` succeeds.
 Each feature file should capture:
 
+- readiness, user approval evidence, approved decisions, and open decisions;
 - goal;
 - user-visible behavior;
 - in scope;
 - out of scope;
+- exactly one current implementation batch;
 - modules involved;
+- persistence, API, configuration/resource, and UI impact;
 - design references;
 - acceptance criteria;
 - test expectations;
+- local user-journey verification;
+- required follow-up tasks;
 - risks and review focus.
 
 Prefer one file per feature rather than a single monolithic features document.
@@ -170,8 +180,11 @@ When the user provides mockups, screenshots, exports, or Figma links:
 - use `.project/design/flows.md` for navigation and state transitions;
 - use `.project/design/sources.md` for canonical Figma or prototype links;
 - treat `.annotated` files as documentation overlays, not as product UI;
-- keep UI/UX decisions human-owned;
-- if the design is ambiguous, write the assumption down or ask before treating it as final.
+- keep final UI/UX direction and acceptance human-owned;
+- if the design is ambiguous, write the assumption down or ask before treating it as final;
+- when no precise design direction exists, a functional provisional UI is allowed for validation;
+- mark that UI as `provisional` in the feature brief and create a final UI refinement task before the feature can be treated as complete;
+- when Control Room manages the project, enqueue that refinement as a dependent top-level task and record its task ID under `Required follow-up tasks`; otherwise record an explicit follow-up task and complete it before final feature acceptance.
 
 ### 5. Execute through reviewable batches
 
@@ -181,9 +194,18 @@ The delivery primitive is a small implementation batch that a human can review.
 For every non-trivial batch:
 
 - align the work with `.project/architecture.md`, `.project/constraints.md`, and the relevant feature brief;
+- do not edit product code while the brief is in `discovery`, has open decisions, or fails `project-kit feature check`;
+- only the user can authorize the transition to `ready`; the agent may draft the contract but must record concrete approval evidence instead of self-approving it;
+- state one concise change contract before implementation: approved decisions, current batch, explicit non-goals, affected persistence, APIs, configuration/resources, UI, verification, and review risks;
+- challenge speculative abstractions, future configuration, duplicated validation, and unrelated cleanup during planning, before they enter the diff;
+- split work by risk surface. A batch crossing persistence, backend, worker/runtime, UI, and operations should be split unless the cross-layer slice is necessary for one independently verifiable outcome and the user explicitly accepts that scope;
 - keep the diff small enough for meaningful review;
+- run the automated checks required by the brief and exercise the actual local user journey, including setup, configuration, resource loading, and visible UI states when relevant;
 - use the Reviewer phase to challenge speculative abstractions, duplicated validation, unnecessary fallback paths, and code that can be removed without weakening the stated requirement;
+- use a fresh-context Reviewer agent for non-trivial persistence, security, architecture, or cross-layer work when agents are available and authorized; otherwise perform a distinct Reviewer pass and disclose that it was local;
 - use `.project/review-checklist.md` before considering the batch complete.
+
+Control Room and Project Kit have separate responsibilities: Control Room may own task queueing, worker branches, review iteration, and approval-only Git integration; Project Kit owns whether a task is ready, how narrowly it is implemented, and what evidence is required before review.
 
 ### 6. Preserve human ownership
 
@@ -194,6 +216,7 @@ The skill must improve collaboration, not replace product, design, or engineerin
 - Do not create fictional modules or directory trees.
 - Do not hardcode a process heavier than the team needs.
 - Prefer concise, auditable updates that a human can review quickly.
+- In the handoff, enumerate actual persistence, API, configuration/resource, and UI changes, then provide exact automated and local verification evidence.
 - Keep repository-facing prose in English even when the user supplied the source information in another language.
 
 ## Scripted Scaffolding
@@ -215,15 +238,38 @@ After the baseline exists, use the feature command for the daily implementation 
 
 ```bash
 node --experimental-strip-types scripts/feature.ts create --name "User authentication"
-node --experimental-strip-types scripts/feature.ts update --slug user-authentication --acceptance "Can sign in,Can sign out"
+node --experimental-strip-types scripts/feature.ts update \
+  --slug user-authentication \
+  --status ready \
+  --approval "User approved the session-boundary batch" \
+  --open-decisions none \
+  --problem "Users cannot start a session" \
+  --outcome "Users can sign in safely" \
+  --behavior "Users can sign in,Invalid credentials are rejected" \
+  --in-scope "Session creation,Sign-in form" \
+  --out-of-scope "Password recovery" \
+  --batch "Implement the session boundary" \
+  --modules "Authentication API,Sign-in UI" \
+  --persistence-impact "None" \
+  --api-impact "Add the session endpoint" \
+  --config-impact "None" \
+  --ui-impact "Add the sign-in form" \
+  --ui-maturity final \
+  --acceptance "Can sign in,Can sign out" \
+  --tests "Add session boundary tests" \
+  --verification "Start locally and complete sign-in" \
+  --risks "Authentication boundary"
+node --experimental-strip-types scripts/feature.ts check --slug user-authentication
 node --experimental-strip-types scripts/feature.ts list
 ```
 
 Use this command to:
 
-- create a new implementation-ready feature brief;
+- create a new discovery brief;
 - refine acceptance criteria, test expectations, design references, or review focus;
-- inspect the current feature brief inventory without touching scaffold files.
+- make the current implementation batch and all affected surfaces explicit;
+- verify that no blocking decision or required evidence is missing before code changes begin;
+- inspect the current feature brief inventory and readiness statuses without touching scaffold files.
 
 ## Output Standard
 

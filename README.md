@@ -9,9 +9,9 @@ This is not an Agile framework and it is not a vibe-coding starter.
 The model is:
 
 - `architecture-first`
-- `feature briefs instead of backlog theater`
+- `just-in-time feature briefs with a readiness gate`
 - `human-owned design context for UI work`
-- `small implementation batches`
+- `one risk-focused implementation batch at a time`
 - `mandatory review gates`
 
 ## What It Scaffolds
@@ -23,7 +23,7 @@ Project Kit bootstraps a repository around three layers of context:
 - `Design context`
   Human-owned mockups, annotations, flows, and canonical design sources for UI work.
 - `Execution context`
-  Small feature briefs and a review checklist that tell Codex what to implement next.
+  Ready feature briefs, explicit batch contracts, local verification, and a review checklist that tell Codex exactly what to implement next.
 
 The default baseline is:
 
@@ -55,10 +55,11 @@ project-name.code-workspace
 
 ## Core Principles
 
-- Humans own architecture, scope, UI/UX decisions, and acceptance.
+- Humans own architecture, scope, final UI/UX direction, and acceptance.
 - Codex helps with repository analysis, implementation, and controlled documentation updates.
-- UI design is not delegated to AI. When design assets exist, Codex implements them rather than inventing a different interface.
+- When design assets exist, Codex implements them rather than inventing a different interface. Without precise design, Codex may create a functional provisional UI for validation, followed by an explicit final UI refinement task.
 - Every non-trivial batch should be small enough for human review.
+- A green test suite is not enough: non-trivial changes also require the real local user journey to be exercised.
 - Stable constraints matter more than ceremonial process vocabulary.
 
 ## Recommended Workflow
@@ -85,15 +86,22 @@ Those become:
 Each feature gets its own file under `.project/features/`.
 A feature brief should capture:
 
+- readiness, user approval evidence, approved decisions, and open decisions;
 - goal;
 - user-visible behavior;
 - in scope;
 - out of scope;
+- exactly one current implementation batch;
 - modules involved;
+- persistence, API, configuration/resource, and UI impact;
 - design references;
 - acceptance criteria;
 - test expectations;
+- local user-journey verification;
+- required follow-up tasks;
 - risks and review focus.
+
+New briefs default to `discovery`. They become implementation-ready only when the user has approved the exact batch contract, that evidence is recorded, their status is `ready`, no blocking decisions remain, and `project-kit feature check` succeeds.
 
 ### 3. Add design context for UI projects
 
@@ -111,12 +119,18 @@ The default asset convention is:
 - `screen-name.annotated.png`
 - `screen-name.annotations.md` when numeric callouts need prose
 
-### 4. Implement in small batches
+### 4. Make one batch ready
 
-Codex should work on one reviewable batch at a time, not on an entire application in a single prompt.
+Resolve blocking decisions and define one concise change contract: the current batch, explicit non-goals, affected surfaces, acceptance, tests, local verification, and review risks. The agent may draft it, but only the user can approve the transition to `ready`. Apply the anti-overengineering gate here, before speculative work reaches the diff.
+
+If the batch crosses persistence, backend, worker/runtime, UI, and operations, split it unless the cross-layer slice is required for one independently verifiable outcome.
+
+### 5. Implement one ready batch
+
+Codex should work on the one batch named by the ready brief, not on an entire application in a single prompt.
 Each batch should be understandable in diff form.
 
-### 5. Review before moving on
+### 6. Verify and review before moving on
 
 Use `.project/review-checklist.md` as the gate for every non-trivial change.
 That review should cover:
@@ -126,6 +140,7 @@ That review should cover:
 - simplicity and necessity;
 - security;
 - test coverage where needed;
+- the real local user journey;
 - design fidelity when UI is involved.
 
 ## Use As A Skill
@@ -170,16 +185,38 @@ After the repository is initialized or aligned, use the feature command instead 
 
 ```bash
 node ./bin/project-kit.js feature create --name "User authentication"
-node ./bin/project-kit.js feature update --slug user-authentication --acceptance "Can sign in,Can sign out" --tests "Add auth controller tests"
+node ./bin/project-kit.js feature update \
+  --slug user-authentication \
+  --status ready \
+  --approval "User approved the session-boundary batch" \
+  --open-decisions none \
+  --problem "Users cannot start a session" \
+  --outcome "Users can sign in safely" \
+  --behavior "Users can sign in,Invalid credentials are rejected" \
+  --in-scope "Session creation,Sign-in form" \
+  --out-of-scope "Password recovery" \
+  --batch "Implement the session boundary" \
+  --modules "Authentication API,Sign-in UI" \
+  --persistence-impact "None" \
+  --api-impact "Add the session endpoint" \
+  --config-impact "None" \
+  --ui-impact "Add the sign-in form" \
+  --ui-maturity final \
+  --acceptance "Can sign in,Can sign out" \
+  --tests "Add auth controller tests" \
+  --verification "Start locally and complete sign-in" \
+  --risks "Authentication boundary"
+node ./bin/project-kit.js feature check --slug user-authentication
 node ./bin/project-kit.js feature list
 ```
 
 This keeps the daily workflow narrow:
 
 - `init` and `align` define the repository operating system;
-- `feature create` starts the next implementation brief;
-- `feature update` refines acceptance, tests, design references, or review focus;
-- `feature list` shows the current brief inventory.
+- `feature create` starts the next discovery brief;
+- `feature update` resolves decisions and defines one current batch and its change contract;
+- `feature check` blocks implementation until the brief is genuinely ready;
+- `feature list` shows the current brief inventory and each readiness status.
 
 ## End-to-End Demo
 
@@ -195,20 +232,24 @@ flowchart TD
     E --> G[Baseline created: README, AGENTS, CODE_STYLE, manifest, .project]
     F --> G
     G --> H{Does the project have UI work?}
-    H -->|Yes| I[Add mockups, design flows, and source links under .project/design]
-    H -->|No| J[Skip design context and continue with code-only delivery]
-    I --> K[Create the first feature brief]
+    H -->|Yes, with design| I[Add mockups, design flows, and source links under .project/design]
+    H -->|Yes, without design| J[Allow a provisional UI and create a final refinement task]
+    H -->|No| V[Continue without design context]
+    I --> K[Create the first discovery brief]
     J --> K
-    K --> L[Refine acceptance, tests, and review risks]
-    L --> M[Codex reads the durable context and implements one small batch]
-    M --> N[Run tests and update docs when durable context changed]
-    N --> O[Review the diff against .project/review-checklist.md]
-    O --> P{Batch accepted?}
-    P -->|No| Q[Refine the brief, constraints, or design notes and iterate]
-    Q --> M
-    P -->|Yes| R[Open a PR from a feature branch]
-    R --> S[Human review and merge]
-    S --> T[Create the next feature brief or prepare a release]
+    V --> K
+    K --> L[Resolve decisions and define one batch contract]
+    L --> M{Does project-kit feature check pass?}
+    M -->|No| L
+    M -->|Yes| N[Codex implements only the ready batch]
+    N --> O[Run tests and exercise the real local user journey]
+    O --> P[Review the diff against .project/review-checklist.md]
+    P --> Q{Batch accepted?}
+    Q -->|No| R[Refine the brief, constraints, or design notes and iterate]
+    R --> N
+    Q -->|Yes| S[Open a PR from a feature branch]
+    S --> T[Human review and merge]
+    T --> U[Create the next discovery brief or prepare a release]
 ```
 
 Example metadata for the simulated project:
@@ -231,7 +272,28 @@ Example command sequence:
 ```bash
 node ./bin/project-kit.js init --target /tmp/acme-billing-web --meta ./project-config.json
 node ./bin/project-kit.js feature create --name "User authentication"
-node ./bin/project-kit.js feature update --slug user-authentication --acceptance "Can sign in,Can sign out" --tests "Add auth form tests,Add auth session tests" --risks "Auth boundary,Session handling"
+node ./bin/project-kit.js feature update \
+  --slug user-authentication \
+  --status ready \
+  --approval "User approved the session-boundary batch" \
+  --open-decisions none \
+  --problem "Users cannot start a session" \
+  --outcome "Users can sign in safely" \
+  --behavior "Users can sign in,Invalid credentials are rejected" \
+  --in-scope "Session creation,Sign-in form" \
+  --out-of-scope "Password recovery" \
+  --batch "Implement the session boundary" \
+  --modules "Authentication API,Sign-in UI" \
+  --persistence-impact "None" \
+  --api-impact "Add the session endpoint" \
+  --config-impact "None" \
+  --ui-impact "Add the final sign-in form" \
+  --ui-maturity final \
+  --acceptance "Can sign in,Can sign out" \
+  --tests "Add auth form tests,Add auth session tests" \
+  --verification "Start locally and complete sign-in" \
+  --risks "Auth boundary,Session handling"
+node ./bin/project-kit.js feature check --slug user-authentication
 node ./bin/project-kit.js feature list
 ```
 

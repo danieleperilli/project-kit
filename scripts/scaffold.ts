@@ -693,7 +693,7 @@ function buildFeatureDefinitions(features: string[]): IFeatureDefinition[] {
  */
 function buildFeatureIndexSummary(featureDefinitions: IFeatureDefinition[]): string {
     if (featureDefinitions.length === 0) {
-        return "- Add one file per implementation-ready feature brief as the architecture becomes clear.";
+        return "- Create a discovery brief just in time when the next feature is selected.";
     }
 
     return featureDefinitions

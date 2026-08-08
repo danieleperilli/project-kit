@@ -26,16 +26,21 @@ Load additional context only when it applies:
 ## Delivery Workflow
 
 1. Update durable context only when project understanding materially changes.
-2. Define or refine the relevant feature brief before implementation.
-3. Keep implementation batches small enough for a meaningful human review.
-4. Review the diff against `.project/review-checklist.md` before the next batch.
-5. Add a changelog entry for every meaningful change included in a pull request.
+2. Create or refine the relevant feature brief just in time. New briefs default to `discovery`.
+3. Resolve blocking decisions, define exactly one batch and its change contract, record the user's approval, set the brief to `ready`, then run `project-kit feature check --slug <feature-slug>`.
+4. Implement only that batch. Split work that crosses several risk surfaces unless one cross-layer slice is necessary for an independently verifiable outcome.
+5. Run relevant automated checks and exercise the real local user journey.
+6. Review the diff against `.project/review-checklist.md` before the next batch.
+7. Add a changelog entry for every meaningful change included in a pull request.
+
+When no precise design exists, a functional provisional UI is acceptable for validation. Mark it as `provisional` in the feature brief and create a final UI refinement task before the feature is considered complete. Under Control Room, enqueue it as a dependent top-level task and record its task ID.
 
 ## Documentation Updates
 
 - Update `.project/overview.md`, `.project/architecture.md`, and `.project/constraints.md` when durable context changes.
 - Keep `.project/features/index.md` as the map of the feature brief directory.
 - Update the relevant `.project/features/*.md` file when stable feature behavior or boundaries change.
+- Keep its readiness, current batch, explicit impact contract, local verification, and required follow-up tasks aligned with the implementation.
 - Add a dated note to `.project/decisions.md` when a decision becomes worth preserving.
 - If `.project/design/` exists, keep design links, flow notes, and annotated asset references aligned with the implementation.
 - Add product-facing changes under the `Unreleased` release sections.
@@ -49,6 +54,7 @@ Load additional context only when it applies:
 - Prefer high-signal tests for critical behavior over exhaustive low-value coverage.
 - For new repositories, place automated tests under `tests/` unless the repository already uses a different convention.
 - If a risky change is not covered by tests, explain why in the review or pull request.
+- Report local user-journey verification separately from automated test results.
 
 ## Versioning
 

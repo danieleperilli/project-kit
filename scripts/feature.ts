@@ -3,7 +3,7 @@ const path = require("node:path") as typeof import("node:path");
 const featureBrief = require("./feature-brief.ts") as typeof import("./feature-brief");
 
 interface IFeatureCommandOptions {
-    command: "create" | "update" | "list";
+    command: "create" | "update" | "check" | "list";
     target: string;
     name: string | null;
     slug: string | null;
@@ -13,23 +13,36 @@ interface IFeatureCommandOptions {
 }
 
 interface IFeatureBriefInput {
+    status?: FeatureStatus;
+    approvalEvidence?: string | null;
+    approvedDecisions?: string[];
+    openDecisions?: string[];
     problem?: string | null;
     outcome?: string | null;
     behavior?: string[];
     inScope?: string[];
     outOfScope?: string[];
+    currentBatch?: string | null;
     modules?: string[];
+    persistenceImpact?: string | null;
+    apiImpact?: string | null;
+    configurationImpact?: string | null;
+    uiImpact?: string | null;
+    uiMaturity?: UiMaturity;
     designAssets?: string[];
     designFlows?: string[];
     designSources?: string[];
     acceptance?: string[];
     tests?: string[];
+    verification?: string[];
+    followUps?: string[];
     risks?: string[];
 }
 
 interface IFeatureEntry {
     slug: string;
     title: string;
+    status: FeatureStatus;
     path: string;
 }
 
@@ -43,6 +56,24 @@ interface IDesignReferenceFields {
     designFlows: string[];
     designSources: string[];
 }
+
+interface IReadinessFields {
+    status: FeatureStatus;
+    approvalEvidence: string | null;
+    approvedDecisions: string[];
+    openDecisions: string[];
+}
+
+interface IChangeContractFields {
+    persistenceImpact: string | null;
+    apiImpact: string | null;
+    configurationImpact: string | null;
+    uiImpact: string | null;
+    uiMaturity: UiMaturity;
+}
+
+type FeatureStatus = "discovery" | "ready";
+type UiMaturity = "unassessed" | "none" | "final" | "provisional";
 
 const HELP_FLAGS = new Set(["--help", "-h"]);
 const SLUG_PATTERN = /^[a-z0-9._-]+$/;
@@ -62,27 +93,39 @@ function buildHelpText(): string {
     return [
         "Project Kit Feature",
         "",
-        "Manage implementation-ready feature briefs without rerunning init or align.",
+        "Manage discovery and implementation-ready feature briefs without rerunning init or align.",
         "",
         "Usage:",
-        "  project-kit feature <create|update|list> [options]",
+        "  project-kit feature <create|update|check|list> [options]",
         "",
         "Options:",
         "  --target <path>               Target repository path. Defaults to the current working directory.",
         "  --name <name>                 Feature name for create, or updated title for update.",
-        "  --slug <slug>                 Existing feature slug for update.",
+        "  --slug <slug>                 Existing feature slug for update or check.",
         "  --rename-slug <slug>          Rename the feature file during update.",
+        "  --status <discovery|ready>    Feature delivery readiness.",
+        "  --approval <text>             Evidence of the user's batch approval.",
+        "  --approved-decisions <a,b>    Comma-separated decisions approved for this batch.",
+        "  --open-decisions <a,b|none>   Blocking decisions; use none after they are resolved.",
         "  --problem <text>              Goal problem statement.",
         "  --outcome <text>              Goal primary outcome.",
         "  --behavior <a,b,c>            Comma-separated user-visible behavior bullets.",
         "  --in-scope <a,b,c>            Comma-separated in-scope bullets.",
         "  --out-of-scope <a,b,c>        Comma-separated out-of-scope bullets.",
+        "  --batch <text>                One risk-focused implementation batch.",
         "  --modules <a,b,c>             Comma-separated modules involved.",
+        "  --persistence-impact <text>   Persistence changes, or None.",
+        "  --api-impact <text>           API or contract changes, or None.",
+        "  --config-impact <text>        Configuration and resource changes, or None.",
+        "  --ui-impact <text>            UI changes, or None.",
+        "  --ui-maturity <value>         One of unassessed, none, final, or provisional.",
         "  --design-assets <a,b,c>       Comma-separated local design asset references.",
         "  --design-flows <a,b,c>        Comma-separated flow notes.",
         "  --design-sources <a,b,c>      Comma-separated remote design sources.",
         "  --acceptance <a,b,c>          Comma-separated acceptance criteria.",
         "  --tests <a,b,c>               Comma-separated test expectations.",
+        "  --verification <a,b,c>        Comma-separated local user-journey checks.",
+        "  --follow-ups <a,b,c>          Comma-separated required follow-up tasks.",
         "  --risks <a,b,c>               Comma-separated risks and review focus notes.",
         "  --force                       Overwrite an existing file during create, or allow overwrite when renaming.",
         "  --help, -h                    Show this message.",
@@ -90,7 +133,8 @@ function buildHelpText(): string {
         "Examples:",
         "  project-kit feature create --name \"User authentication\"",
         "  project-kit feature create --name \"Billing dashboard\" --design-assets billing-dashboard.png,billing-dashboard.annotated.png --acceptance \"Shows invoice totals,Shows overdue state\"",
-        "  project-kit feature update --slug user-authentication --acceptance \"Can sign in,Can sign out\" --tests \"Add auth controller tests\"",
+        "  project-kit feature update --slug user-authentication --status ready --approval \"User approved the session-boundary batch\" --batch \"Implement the session boundary\" --acceptance \"Can sign in,Can sign out\" --tests \"Add auth controller tests\"",
+        "  project-kit feature check --slug user-authentication",
         "  project-kit feature update --slug billing-dashboard --name \"Billing overview\" --rename-slug billing-overview",
         "  project-kit feature list"
     ].join("\n");
@@ -142,18 +186,42 @@ function validateSlug(slug: string, flagName: string): void {
  * @param {Map<string, string>} values
  */
 function parseFeatureInput(values: Map<string, string>): IFeatureBriefInput {
+    const status = values.get("status");
+    const uiMaturity = values.get("ui-maturity");
+    const openDecisions = values.get("open-decisions");
+
+    if (status && status !== "discovery" && status !== "ready") {
+        throw new Error(`Invalid --status value: ${status}. Use discovery or ready.`);
+    }
+
+    if (uiMaturity && uiMaturity !== "unassessed" && uiMaturity !== "none" && uiMaturity !== "final" && uiMaturity !== "provisional") {
+        throw new Error(`Invalid --ui-maturity value: ${uiMaturity}. Use unassessed, none, final, or provisional.`);
+    }
+
     return {
+        status: status as FeatureStatus | undefined,
+        approvalEvidence: values.get("approval") ?? undefined,
+        approvedDecisions: parseList(values.get("approved-decisions")),
+        openDecisions: openDecisions?.trim().toLowerCase() === "none" ? [] : parseList(openDecisions),
         problem: values.get("problem") ?? undefined,
         outcome: values.get("outcome") ?? undefined,
         behavior: parseList(values.get("behavior")),
         inScope: parseList(values.get("in-scope")),
         outOfScope: parseList(values.get("out-of-scope")),
+        currentBatch: values.get("batch") ?? undefined,
         modules: parseList(values.get("modules")),
+        persistenceImpact: values.get("persistence-impact") ?? undefined,
+        apiImpact: values.get("api-impact") ?? undefined,
+        configurationImpact: values.get("config-impact") ?? undefined,
+        uiImpact: values.get("ui-impact") ?? undefined,
+        uiMaturity: uiMaturity as UiMaturity | undefined,
         designAssets: parseList(values.get("design-assets")),
         designFlows: parseList(values.get("design-flows")),
         designSources: parseList(values.get("design-sources")),
         acceptance: parseList(values.get("acceptance")),
         tests: parseList(values.get("tests")),
+        verification: parseList(values.get("verification")),
+        followUps: parseList(values.get("follow-ups")),
         risks: parseList(values.get("risks"))
     };
 }
@@ -190,8 +258,8 @@ function parseArgs(argv: string[], cwd: string): IFeatureCommandOptions {
 
     const command = positional[0];
 
-    if (command !== "create" && command !== "update" && command !== "list") {
-        throw new Error("Missing or invalid feature command. Use create, update, or list.");
+    if (command !== "create" && command !== "update" && command !== "check" && command !== "list") {
+        throw new Error("Missing or invalid feature command. Use create, update, check, or list.");
     }
 
     const target = values.get("target") ? path.resolve(cwd, values.get("target") as string) : cwd;
@@ -211,8 +279,8 @@ function parseArgs(argv: string[], cwd: string): IFeatureCommandOptions {
         throw new Error("Missing required create metadata: --name.");
     }
 
-    if (command === "update" && !slug) {
-        throw new Error("Missing required update metadata: --slug.");
+    if ((command === "update" || command === "check") && !slug) {
+        throw new Error(`Missing required ${command} metadata: --slug.`);
     }
 
     return {
@@ -268,11 +336,26 @@ function escapeRegExp(value: string): string {
  * @param {string} heading
  */
 function readSectionBody(document: string, heading: string): string {
-    const pattern = new RegExp(`^## ${escapeRegExp(heading)}\\n\\n([\\s\\S]*?)(?=\\n## |$)`, "m");
+    const body = readOptionalSectionBody(document, heading);
+
+    if (body === null) {
+        throw new Error(`Section not found in feature brief: ${heading}.`);
+    }
+
+    return body;
+}
+
+/**
+ * Read a markdown section body when it exists.
+ * @param {string} document
+ * @param {string} heading
+ */
+function readOptionalSectionBody(document: string, heading: string): string | null {
+    const pattern = new RegExp(`^## ${escapeRegExp(heading)}\\n\\n([\\s\\S]*?)(?=\\n## |(?![\\s\\S]))`, "m");
     const match = document.match(pattern);
 
     if (!match) {
-        throw new Error(`Section not found in feature brief: ${heading}.`);
+        return null;
     }
 
     return match[1].trimEnd();
@@ -285,13 +368,43 @@ function readSectionBody(document: string, heading: string): string {
  * @param {string} body
  */
 function replaceSectionBody(document: string, heading: string, body: string): string {
-    const pattern = new RegExp(`(^## ${escapeRegExp(heading)}\\n\\n)([\\s\\S]*?)(?=\\n## |$)`, "m");
+    const pattern = new RegExp(`(^## ${escapeRegExp(heading)}\\n\\n)([\\s\\S]*?)(?=\\n## |(?![\\s\\S]))`, "m");
 
     if (!pattern.test(document)) {
         throw new Error(`Section not found in feature brief: ${heading}.`);
     }
 
     return document.replace(pattern, (_match: string, prefix: string) => `${prefix}${body.trimEnd()}\n\n`);
+}
+
+/**
+ * Add delivery sections to feature briefs created by earlier Project Kit versions.
+ * @param {string} document
+ */
+function ensureFeatureDeliverySections(document: string): string {
+    let updatedDocument = document;
+
+    if (readOptionalSectionBody(updatedDocument, "Readiness") === null) {
+        updatedDocument = updatedDocument.replace(/^## Goal$/m, `## Readiness\n\n${featureBrief.buildReadinessSection(undefined, undefined, undefined, undefined)}\n\n## Goal`);
+    }
+
+    if (readOptionalSectionBody(updatedDocument, "Current batch") === null) {
+        updatedDocument = updatedDocument.replace(/^## Modules involved$/m, `## Current batch\n\n${featureBrief.buildCurrentBatchSection(undefined)}\n\n## Modules involved`);
+    }
+
+    if (readOptionalSectionBody(updatedDocument, "Change contract") === null) {
+        updatedDocument = updatedDocument.replace(/^## Design references$/m, `## Change contract\n\n${featureBrief.buildChangeContractSection(undefined, undefined, undefined, undefined, undefined)}\n\n## Design references`);
+    }
+
+    if (readOptionalSectionBody(updatedDocument, "Local verification") === null) {
+        updatedDocument = updatedDocument.replace(/^## Risks and review focus$/m, `## Local verification\n\n${featureBrief.buildBulletSection(undefined, "")}\n\n## Risks and review focus`);
+    }
+
+    if (readOptionalSectionBody(updatedDocument, "Required follow-up tasks") === null) {
+        updatedDocument = updatedDocument.replace(/^## Risks and review focus$/m, `## Required follow-up tasks\n\n${featureBrief.buildBulletSection(undefined, "")}\n\n## Risks and review focus`);
+    }
+
+    return updatedDocument;
 }
 
 /**
@@ -320,6 +433,41 @@ function readDesignReferenceFields(document: string): IDesignReferenceFields {
         designAssets: readListField(lines, "- Local assets:"),
         designFlows: readListField(lines, "- Flow notes:"),
         designSources: readListField(lines, "- Remote sources:")
+    };
+}
+
+/**
+ * Parse the current readiness fields from a feature brief document.
+ * @param {string} document
+ */
+function readReadinessFields(document: string): IReadinessFields {
+    const body = readSectionBody(document, "Readiness");
+    const lines = body.split("\n").map((line) => line.trim());
+    const status = readSingleField(lines, "- Status:");
+
+    return {
+        status: status === "ready" ? "ready" : "discovery",
+        approvalEvidence: readSingleField(lines, "- Approval evidence:"),
+        approvedDecisions: readListField(lines, "- Approved decisions:"),
+        openDecisions: readListField(lines, "- Open decisions:")
+    };
+}
+
+/**
+ * Parse the current change contract from a feature brief document.
+ * @param {string} document
+ */
+function readChangeContractFields(document: string): IChangeContractFields {
+    const body = readSectionBody(document, "Change contract");
+    const lines = body.split("\n").map((line) => line.trim());
+    const uiMaturity = readSingleField(lines, "- UI maturity:");
+
+    return {
+        persistenceImpact: readSingleField(lines, "- Persistence:"),
+        apiImpact: readSingleField(lines, "- APIs:"),
+        configurationImpact: readSingleField(lines, "- Configuration and resources:"),
+        uiImpact: readSingleField(lines, "- UI:"),
+        uiMaturity: uiMaturity === "none" || uiMaturity === "final" || uiMaturity === "provisional" ? uiMaturity : "unassessed"
     };
 }
 
@@ -383,10 +531,24 @@ function hasDocumentChanges(options: IFeatureCommandOptions): boolean {
  * @param {IFeatureCommandOptions} options
  */
 function applyFeatureUpdates(document: string, options: IFeatureCommandOptions): string {
-    let updatedDocument = document;
+    let updatedDocument = ensureFeatureDeliverySections(document);
 
     if (options.name) {
         updatedDocument = replaceTitle(updatedDocument, options.name);
+    }
+
+    if (options.input.status !== undefined || options.input.approvalEvidence !== undefined || options.input.approvedDecisions !== undefined || options.input.openDecisions !== undefined) {
+        const currentReadiness = readReadinessFields(updatedDocument);
+        updatedDocument = replaceSectionBody(
+            updatedDocument,
+            "Readiness",
+            featureBrief.buildReadinessSection(
+                options.input.status ?? currentReadiness.status,
+                options.input.approvalEvidence !== undefined ? options.input.approvalEvidence : currentReadiness.approvalEvidence,
+                options.input.approvedDecisions ?? currentReadiness.approvedDecisions,
+                options.input.openDecisions ?? currentReadiness.openDecisions
+            )
+        );
     }
 
     if (options.input.problem !== undefined || options.input.outcome !== undefined) {
@@ -417,8 +579,27 @@ function applyFeatureUpdates(document: string, options: IFeatureCommandOptions):
         updatedDocument = replaceSectionBody(updatedDocument, "Out of scope", featureBrief.buildBulletSection(options.input.outOfScope, ""));
     }
 
+    if (options.input.currentBatch !== undefined) {
+        updatedDocument = replaceSectionBody(updatedDocument, "Current batch", featureBrief.buildCurrentBatchSection(options.input.currentBatch));
+    }
+
     if (options.input.modules) {
         updatedDocument = replaceSectionBody(updatedDocument, "Modules involved", featureBrief.buildBulletSection(options.input.modules, ""));
+    }
+
+    if (options.input.persistenceImpact !== undefined || options.input.apiImpact !== undefined || options.input.configurationImpact !== undefined || options.input.uiImpact !== undefined || options.input.uiMaturity !== undefined) {
+        const currentChangeContract = readChangeContractFields(updatedDocument);
+        updatedDocument = replaceSectionBody(
+            updatedDocument,
+            "Change contract",
+            featureBrief.buildChangeContractSection(
+                options.input.persistenceImpact !== undefined ? options.input.persistenceImpact : currentChangeContract.persistenceImpact,
+                options.input.apiImpact !== undefined ? options.input.apiImpact : currentChangeContract.apiImpact,
+                options.input.configurationImpact !== undefined ? options.input.configurationImpact : currentChangeContract.configurationImpact,
+                options.input.uiImpact !== undefined ? options.input.uiImpact : currentChangeContract.uiImpact,
+                options.input.uiMaturity ?? currentChangeContract.uiMaturity
+            )
+        );
     }
 
     if (options.input.designAssets || options.input.designFlows || options.input.designSources) {
@@ -442,22 +623,19 @@ function applyFeatureUpdates(document: string, options: IFeatureCommandOptions):
         updatedDocument = replaceSectionBody(updatedDocument, "Test expectations", featureBrief.buildBulletSection(options.input.tests, ""));
     }
 
+    if (options.input.verification) {
+        updatedDocument = replaceSectionBody(updatedDocument, "Local verification", featureBrief.buildBulletSection(options.input.verification, ""));
+    }
+
+    if (options.input.followUps) {
+        updatedDocument = replaceSectionBody(updatedDocument, "Required follow-up tasks", featureBrief.buildBulletSection(options.input.followUps, ""));
+    }
+
     if (options.input.risks) {
         updatedDocument = replaceSectionBody(updatedDocument, "Risks and review focus", featureBrief.buildBulletSection(options.input.risks, ""));
     }
 
     return updatedDocument;
-}
-
-/**
- * Read the title from a feature brief file.
- * @param {string} featurePath
- */
-async function readFeatureTitle(featurePath: string): Promise<string> {
-    const document = await fs.readFile(featurePath, "utf8");
-    const match = document.match(/^# (.+)$/m);
-
-    return match ? match[1].trim() : path.basename(featurePath, ".md");
 }
 
 /**
@@ -475,11 +653,16 @@ async function readFeatureEntries(targetRoot: string): Promise<IFeatureEntry[]> 
 
     for (const fileName of featureFiles) {
         const featurePath = path.join(featureDirectory, fileName);
-        const title = await readFeatureTitle(featurePath);
+        const document = await fs.readFile(featurePath, "utf8");
+        const titleMatch = document.match(/^# (.+)$/m);
+        const title = titleMatch ? titleMatch[1].trim() : path.basename(featurePath, ".md");
+        const readinessBody = readOptionalSectionBody(document, "Readiness");
+        const status = readinessBody === null ? "discovery" : readReadinessFields(document).status;
 
         featureEntries.push({
             slug: fileName.slice(0, -3),
             title,
+            status,
             path: featurePath
         });
     }
@@ -495,7 +678,7 @@ async function readFeatureEntries(targetRoot: string): Promise<IFeatureEntry[]> 
  */
 function buildFeatureIndexSummary(featureEntries: IFeatureEntry[]): string {
     if (featureEntries.length === 0) {
-        return "- Add one file per implementation-ready feature brief as the architecture becomes clear.";
+        return "- Create a discovery brief just in time when the next feature is selected.";
     }
 
     return featureEntries
@@ -597,6 +780,137 @@ async function updateFeature(skillRoot: string, options: IFeatureCommandOptions)
 }
 
 /**
+ * Read non-empty bullet values from one feature brief section.
+ * @param {string} document
+ * @param {string} heading
+ */
+function readBulletItems(document: string, heading: string): string[] {
+    const body = readOptionalSectionBody(document, heading);
+
+    if (body === null) {
+        return [];
+    }
+
+    return body
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith("- "))
+        .map((line) => line.slice(2).trim())
+        .filter(Boolean);
+}
+
+/**
+ * Validate whether one feature brief is ready for implementation.
+ * @param {string} document
+ */
+function validateFeatureReadiness(document: string): string[] {
+    const issues: string[] = [];
+    const readinessBody = readOptionalSectionBody(document, "Readiness");
+    const goalBody = readOptionalSectionBody(document, "Goal");
+    const changeContractBody = readOptionalSectionBody(document, "Change contract");
+    const behavior = readBulletItems(document, "User-visible behavior").filter((item) => item !== "Describe the behavior in terms the reviewer can verify.");
+    const inScope = readBulletItems(document, "In scope");
+    const outOfScope = readBulletItems(document, "Out of scope");
+    const currentBatch = readBulletItems(document, "Current batch");
+    const modules = readBulletItems(document, "Modules involved");
+    const acceptance = readBulletItems(document, "Acceptance criteria");
+    const tests = readBulletItems(document, "Test expectations");
+    const verification = readBulletItems(document, "Local verification");
+    const followUps = readBulletItems(document, "Required follow-up tasks");
+    const risks = readBulletItems(document, "Risks and review focus");
+
+    if (readinessBody === null) {
+        issues.push("Add the Readiness section by updating the brief with the current Project Kit version.");
+    } else {
+        const readiness = readReadinessFields(document);
+
+        if (readiness.status !== "ready") {
+            issues.push("Set Readiness status to ready after the batch contract is approved.");
+        }
+
+        if (!readiness.approvalEvidence) {
+            issues.push("Record evidence of the user's approval for this exact batch contract.");
+        }
+
+        if (readiness.openDecisions.length > 0) {
+            issues.push(`Resolve or remove open decisions: ${readiness.openDecisions.join("; ")}.`);
+        }
+    }
+
+    if (goalBody === null) {
+        issues.push("Add the Goal section.");
+    } else {
+        const goal = readGoalFields(document);
+
+        if (!goal.problem || !goal.outcome) {
+            issues.push("Define both the problem solved and the primary outcome.");
+        }
+    }
+
+    if (behavior.length === 0) {
+        issues.push("Define verifiable user-visible behavior, including an explicit no-user-visible-change statement when applicable.");
+    }
+
+    if (inScope.length === 0 || outOfScope.length === 0) {
+        issues.push("Define both in-scope and out-of-scope boundaries; use an explicit None when appropriate.");
+    }
+
+    if (currentBatch.length !== 1) {
+        issues.push("Define exactly one current implementation batch.");
+    }
+
+    if (modules.length === 0) {
+        issues.push("Identify the modules involved in the current batch.");
+    }
+
+    if (changeContractBody === null) {
+        issues.push("Add the Change contract section.");
+    } else {
+        const changeContract = readChangeContractFields(document);
+
+        if (!changeContract.persistenceImpact || !changeContract.apiImpact || !changeContract.configurationImpact || !changeContract.uiImpact) {
+            issues.push("Make persistence, API, configuration/resource, and UI impacts explicit; use None where applicable.");
+        }
+
+        if (changeContract.uiMaturity === "unassessed") {
+            issues.push("Set UI maturity to none, final, or provisional.");
+        }
+
+        if (changeContract.uiMaturity === "provisional" && followUps.length === 0) {
+            issues.push("Add a final UI refinement task before treating a provisional UI feature as complete.");
+        }
+    }
+
+    if (acceptance.length === 0 || tests.length === 0 || verification.length === 0 || risks.length === 0) {
+        issues.push("Define acceptance criteria, test expectations, local verification, and review risks; use an explicit None with a reason when appropriate.");
+    }
+
+    return issues;
+}
+
+/**
+ * Check whether one feature brief is ready for implementation without changing it.
+ * @param {IFeatureCommandOptions} options
+ */
+async function checkFeature(options: IFeatureCommandOptions): Promise<void> {
+    const slug = options.slug as string;
+    const featurePath = path.join(getFeatureDirectory(options.target), `${slug}.md`);
+
+    if (!(await pathExists(featurePath))) {
+        throw new Error(`Feature brief not found: ${featurePath}.`);
+    }
+
+    const document = await fs.readFile(featurePath, "utf8");
+    const issues = validateFeatureReadiness(document);
+
+    if (issues.length > 0) {
+        throw new Error([`Feature brief ${slug} is not ready:`, ...issues.map((issue) => `- ${issue}`)].join("\n"));
+    }
+
+    process.stdout.write(`Feature brief ${slug} is ready for one implementation batch.\n`);
+}
+
+/**
  * List the current feature brief files.
  * @param {string} targetRoot
  */
@@ -610,7 +924,7 @@ async function listFeatures(targetRoot: string): Promise<void> {
 
     const lines = [
         `Feature briefs in ${getFeatureDirectory(targetRoot)}:`,
-        ...featureEntries.map((featureEntry) => `- ${featureEntry.slug} :: ${featureEntry.title}`)
+        ...featureEntries.map((featureEntry) => `- ${featureEntry.slug} :: ${featureEntry.title} [${featureEntry.status}]`)
     ];
 
     process.stdout.write(`${lines.join("\n")}\n`);
@@ -640,6 +954,11 @@ async function main(): Promise<void> {
 
     if (options.command === "update") {
         await updateFeature(skillRoot, options);
+        return;
+    }
+
+    if (options.command === "check") {
+        await checkFeature(options);
         return;
     }
 
