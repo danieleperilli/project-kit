@@ -1,8 +1,22 @@
+/** Type-only CommonJS surface shared by the scaffold and feature CLI. */
+export interface IFeatureBriefRenderer {
+    buildBulletSection: typeof buildBulletSection;
+    buildChangeContractSection: typeof buildChangeContractSection;
+    buildCurrentBatchSection: typeof buildCurrentBatchSection;
+    buildDesignReferencesSection: typeof buildDesignReferencesSection;
+    buildFeatureBriefDocument: typeof buildFeatureBriefDocument;
+    buildFeatureSlug: typeof buildFeatureSlug;
+    buildGoalSection: typeof buildGoalSection;
+    buildReadinessSection: typeof buildReadinessSection;
+}
+
 interface IFeatureBriefDocumentInput {
     status?: FeatureStatus;
     approvalEvidence?: string | null;
     approvedDecisions?: string[];
     openDecisions?: string[];
+    archiveReason?: string | null;
+    currentReference?: string | null;
     problem?: string | null;
     outcome?: string | null;
     behavior?: string[];
@@ -25,7 +39,7 @@ interface IFeatureBriefDocumentInput {
     risks?: string[];
 }
 
-type FeatureStatus = "discovery" | "ready";
+type FeatureStatus = "discovery" | "ready" | "archived";
 type UiMaturity = "unassessed" | "none" | "final" | "provisional";
 
 /**
@@ -74,13 +88,16 @@ function buildGoalSection(problem: string | null | undefined, outcome: string | 
  * @param {string | null | undefined} approvalEvidence
  * @param {string[] | undefined} approvedDecisions
  * @param {string[] | undefined} openDecisions
+ * @param {string | null | undefined} archiveReason
+ * @param {string | null | undefined} currentReference
  */
-function buildReadinessSection(status: FeatureStatus | undefined, approvalEvidence: string | null | undefined, approvedDecisions: string[] | undefined, openDecisions: string[] | undefined): string {
+function buildReadinessSection(status: FeatureStatus | undefined, approvalEvidence: string | null | undefined, approvedDecisions: string[] | undefined, openDecisions: string[] | undefined, archiveReason?: string | null, currentReference?: string | null): string {
     return [
         `- Status: ${status ?? "discovery"}`,
         `- Approval evidence: ${approvalEvidence ?? ""}`.trimEnd(),
         `- Approved decisions: ${approvedDecisions && approvedDecisions.length > 0 ? approvedDecisions.join("; ") : ""}`.trimEnd(),
-        `- Open decisions: ${openDecisions && openDecisions.length > 0 ? openDecisions.join("; ") : ""}`.trimEnd()
+        `- Open decisions: ${openDecisions && openDecisions.length > 0 ? openDecisions.join("; ") : ""}`.trimEnd(),
+        ...(status === "archived" ? [`- Archive reason: ${archiveReason ?? ""}`.trimEnd(), `- Current reference: ${currentReference ?? ""}`.trimEnd()] : [])
     ].join("\n");
 }
 
@@ -135,7 +152,7 @@ function buildFeatureBriefDocument(featureName: string, input: IFeatureBriefDocu
         "",
         "## Readiness",
         "",
-        buildReadinessSection(input.status, input.approvalEvidence, input.approvedDecisions, input.openDecisions),
+        buildReadinessSection(input.status, input.approvalEvidence, input.approvedDecisions, input.openDecisions, input.archiveReason, input.currentReference),
         "",
         "## Goal",
         "",

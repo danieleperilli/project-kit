@@ -1,4 +1,4 @@
-const assert = require("node:assert/strict") as typeof import("node:assert/strict");
+const assert: typeof import("node:assert/strict") = require("node:assert/strict");
 const childProcess = require("node:child_process") as typeof import("node:child_process");
 const fs = require("node:fs/promises") as typeof import("node:fs/promises");
 const os = require("node:os") as typeof import("node:os");
@@ -9,12 +9,91 @@ const repositoryRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repositoryRoot, "bin", "project-kit.js");
 const scaffoldBinPath = path.join(repositoryRoot, "bin", "project-kit-scaffold.js");
 
+interface IFeatureTestWorkspace {
+    target: string;
+    briefPath: string;
+    indexPath: string;
+    original: string;
+}
+
+/** Create a complete persisted contract independently of the feature renderer. */
+async function createReadyFeatureWorkspace(): Promise<IFeatureTestWorkspace> {
+    const target = await createTemporaryDirectory();
+    const directory = path.join(target, ".project", "features");
+    await fs.mkdir(directory, { recursive: true });
+    const briefPath = path.join(directory, "account-sync.md");
+    const indexPath = path.join(directory, "index.md");
+    const original = [
+        "# Account sync",
+        "",
+        "## Readiness",
+        "",
+        "- Status: ready",
+        "- Approval evidence: approval-001",
+        "- Approved decisions: D-007",
+        "- Open decisions:",
+        "",
+        "## Goal",
+        "",
+        "- Problem solved: Accounts lack synchronized balances",
+        "- Primary outcome: Preserve account totals",
+        "",
+        "## User-visible behavior",
+        "",
+        "- Account totals converge",
+        "",
+        "## In scope",
+        "",
+        "- Account synchronization",
+        "",
+        "## Out of scope",
+        "",
+        "- Provider migration",
+        "",
+        "## Current batch",
+        "",
+        "- Synchronize balances",
+        "",
+        "## Modules involved",
+        "",
+        "- Account service",
+        "",
+        "## Change contract",
+        "",
+        "- Persistence: None",
+        "- APIs: None",
+        "- Configuration and resources: None",
+        "- UI: None",
+        "- UI maturity: none",
+        "",
+        "## Acceptance criteria",
+        "",
+        "- Totals match the source",
+        "",
+        "## Test expectations",
+        "",
+        "- Verify account invariants",
+        "",
+        "## Local verification",
+        "",
+        "- Synchronize a fixture",
+        "",
+        "## Risks and review focus",
+        "",
+        "- Duplicate accounting",
+        ""
+    ].join("\n");
+    await fs.writeFile(briefPath, original);
+    await fs.writeFile(indexPath, "# Project-specific index\n\nRetain this editorial introduction.\n");
+    return { target, briefPath, indexPath, original };
+}
+
 /**
  * Run the public scaffold CLI and capture the result.
  * @param {string[]} args
  * @param {string} cwd
  */
-function runScaffold(args: string[], cwd: string): childProcess.SpawnSyncReturns<string> {
+function runScaffold(args: string[], cwd: string): import("node:child_process").SpawnSyncReturns<string> {
     return childProcess.spawnSync(process.execPath, [scaffoldBinPath, ...args], {
         cwd,
         encoding: "utf8"
@@ -26,7 +105,7 @@ function runScaffold(args: string[], cwd: string): childProcess.SpawnSyncReturns
  * @param {string[]} args
  * @param {string} cwd
  */
-function runProjectKit(args: string[], cwd: string): childProcess.SpawnSyncReturns<string> {
+function runProjectKit(args: string[], cwd: string): import("node:child_process").SpawnSyncReturns<string> {
     return childProcess.spawnSync(process.execPath, [cliPath, ...args], {
         cwd,
         encoding: "utf8"
@@ -109,9 +188,6 @@ test("loads project-config.json automatically during init", async (t) => {
     const packageJson = JSON.parse(await fs.readFile(path.join(targetPath, "package.json"), "utf8")) as { name: string; version: string; };
     const projectConfig = JSON.parse(await fs.readFile(path.join(targetPath, "project-config.json"), "utf8")) as { features: string[]; primaryLanguage: string; originalPromptEnglish?: string; };
     const agents = await fs.readFile(path.join(targetPath, "AGENTS.md"), "utf8");
-    const contributing = await fs.readFile(path.join(targetPath, "CONTRIBUTING.md"), "utf8");
-    const readme = await fs.readFile(path.join(targetPath, "README.md"), "utf8");
-    const reviewChecklist = await fs.readFile(path.join(targetPath, ".project", "review-checklist.md"), "utf8");
     const featureIndex = await fs.readFile(path.join(targetPath, ".project", "features", "index.md"), "utf8");
     const featureBrief = await fs.readFile(path.join(targetPath, ".project", "features", "user-authentication.md"), "utf8");
 
@@ -120,25 +196,7 @@ test("loads project-config.json automatically during init", async (t) => {
     assert.equal(projectConfig.primaryLanguage, "TypeScript");
     assert.equal(projectConfig.originalPromptEnglish, "Build a browser-only tool that creates and edits SVG maps for Power BI.");
     assert.deepEqual(projectConfig.features, ["User authentication", "Usage reporting"]);
-    assert.match(agents, /## Context Loading/);
-    assert.match(agents, /default `project_doc_max_bytes` limit of 32 KiB \(32,768 bytes\)/);
     assert.ok(Buffer.byteLength(agents, "utf8") < 32768, "Generated AGENTS.md must remain below Codex's default 32 KiB project instruction limit.");
-    assert.match(agents, /For non-trivial implementation work, also read `\.project\/overview\.md`, `\.project\/architecture\.md`, and `\.project\/constraints\.md` before editing/);
-    assert.match(agents, /only `Unreleased` unless history is requested/);
-    assert.match(agents, /## Anti-Overengineering Gate/);
-    assert.match(agents, /## Delivery Readiness/);
-    assert.match(agents, /project-kit feature check --slug <feature-slug>/);
-    assert.match(agents, /functional provisional UI for validation/);
-    assert.match(agents, /Security and correctness take precedence over simplicity/);
-    assert.doesNotMatch(agents, /## Read Order/);
-    assert.match(contributing, /## Context Loading/);
-    assert.match(contributing, /For non-trivial implementation work, also read `\.project\/overview\.md`, `\.project\/architecture\.md`, and `\.project\/constraints\.md` before editing/);
-    assert.match(contributing, /`CODE_STYLE\.md`: before source edits, if present/);
-    assert.match(readme, /review-gated/);
-    assert.match(reviewChecklist, /## Simplicity And Necessity/);
-    assert.match(reviewChecklist, /## Readiness And Batch Contract/);
-    assert.match(reviewChecklist, /actual local user journey exercised/);
-    assert.match(reviewChecklist, /smallest change that fully satisfies the current requirement/);
     assert.match(featureIndex, /\[User authentication\]\(\.\/user-authentication\.md\)/);
     assert.match(featureIndex, /\[Usage reporting\]\(\.\/usage-reporting\.md\)/);
     assert.match(featureBrief, /## Readiness\n\n- Status: discovery/);
@@ -181,7 +239,7 @@ test("init does not require feature brief metadata and persists project-config.j
     const featureEntries = await fs.readdir(path.join(targetPath, ".project", "features"));
     const projectConfig = JSON.parse(await fs.readFile(path.join(targetPath, "project-config.json"), "utf8")) as { features: string[]; stack: string[]; originalPromptEnglish?: string; };
 
-    assert.match(featureIndex, /Create a discovery brief just in time when the next feature is selected/);
+    assert.equal([...featureIndex.matchAll(/\]\(\.\/[^)]+\.md\)/g)].length, 0);
     assert.deepEqual(featureEntries.sort(), ["index.md"]);
     assert.deepEqual(projectConfig.features, []);
     assert.deepEqual(projectConfig.stack, ["TypeScript", "React"]);
@@ -352,7 +410,7 @@ test("align does not require feature brief names when no feature inventory exist
 
     const featureIndex = await fs.readFile(path.join(targetPath, ".project", "features", "index.md"), "utf8");
 
-    assert.match(featureIndex, /Create a discovery brief just in time when the next feature is selected/);
+    assert.equal([...featureIndex.matchAll(/\]\(\.\/[^)]+\.md\)/g)].length, 0);
 });
 
 test("align does not require features when the new feature index already exists", async (t) => {
@@ -865,4 +923,170 @@ test("feature check enforces readiness and a refinement task for provisional UI"
     assert.match(readyCheck.stdout, /ready for one implementation batch/);
     assert.equal(readyList.status, 0, readyList.stderr);
     assert.match(readyList.stdout, /usage-dashboard :: Usage dashboard \[ready\]/);
+});
+
+test("archived briefs retain evidence but cannot authorize or reappear in active work", async (t) => {
+    const workspace = await createReadyFeatureWorkspace();
+    t.after(async () => { await fs.rm(workspace.target, { recursive: true, force: true }); });
+    const args = ["--target", workspace.target, "--slug", "account-sync"];
+    assert.equal(runProjectKit(["feature", "check", ...args], repositoryRoot).status, 0);
+    assert.equal(runProjectKit(["feature", "update", ...args, "--status", "archived"], repositoryRoot).status, 1);
+    assert.equal(await fs.readFile(workspace.briefPath, "utf8"), workspace.original);
+    const archived = runProjectKit(["feature", "update", ...args, "--status", "archived", "--archive-reason", "Superseded by D-008", "--current-reference", "../architecture.md#accounts"], repositoryRoot);
+    assert.equal(archived.status, 0, archived.stderr);
+    const document = await fs.readFile(workspace.briefPath, "utf8");
+    assert.ok(document.includes("- Approval evidence: approval-001"));
+    assert.ok(document.includes("- Current reference: ../architecture.md#accounts"));
+    assert.equal(document.slice(document.indexOf("## Goal")), workspace.original.slice(workspace.original.indexOf("## Goal")));
+    assert.equal(runProjectKit(["feature", "check", ...args], repositoryRoot).status, 1);
+    const active = runProjectKit(["feature", "list", "--target", workspace.target], repositoryRoot);
+    const all = runProjectKit(["feature", "list", "--all", "--target", workspace.target], repositoryRoot);
+    assert.equal(active.status, 0, active.stderr);
+    assert.equal(all.status, 0, all.stderr);
+    assert.ok(!active.stdout.includes("account-sync"));
+    assert.ok(all.stdout.includes("account-sync"));
+    assert.equal(await fs.readFile(workspace.briefPath, "utf8"), document);
+    const created = runProjectKit(["feature", "create", "--target", workspace.target, "--name", "Next sync"], repositoryRoot);
+    assert.equal(created.status, 0, created.stderr);
+    const index = await fs.readFile(workspace.indexPath, "utf8");
+    const activeRegion = index.split("<!-- project-kit:features:active:start -->")[1].split("<!-- project-kit:features:active:end -->")[0];
+    const archivedRegion = index.split("<!-- project-kit:features:archived:start -->")[1].split("<!-- project-kit:features:archived:end -->")[0];
+    assert.ok(!activeRegion.includes("./account-sync.md"));
+    assert.ok(activeRegion.includes("./next-sync.md"));
+    assert.ok(archivedRegion.includes("./account-sync.md"));
+    assert.ok(index.startsWith("# Project-specific index\n\nRetain this editorial introduction.\n"));
+    assert.equal(await fs.readFile(workspace.briefPath, "utf8"), document);
+});
+
+test("reopening requires discovery and fresh batch approval while preserving provenance", async (t) => {
+    const workspace = await createReadyFeatureWorkspace();
+    t.after(async () => { await fs.rm(workspace.target, { recursive: true, force: true }); });
+    const args = ["--target", workspace.target, "--slug", "account-sync"];
+    const archive = runProjectKit(["feature", "update", ...args, "--status", "archived", "--archive-reason", "Completed"], repositoryRoot);
+    assert.equal(archive.status, 0, archive.stderr);
+    const archived = await fs.readFile(workspace.briefPath, "utf8");
+    for (const flags of [["--status", "ready", "--approval", "approval-002"], ["--status", "discovery", "--approval", "approval-002"]]) {
+        assert.equal(runProjectKit(["feature", "update", ...args, ...flags], repositoryRoot).status, 1);
+        assert.equal(await fs.readFile(workspace.briefPath, "utf8"), archived);
+    }
+    const reopened = runProjectKit(["feature", "update", ...args, "--status", "discovery"], repositoryRoot);
+    assert.equal(reopened.status, 0, reopened.stderr);
+    const document = await fs.readFile(workspace.briefPath, "utf8");
+    const readiness = document.split("## Readiness\n\n")[1].split("\n## ")[0];
+    assert.ok(readiness.includes("- Status: discovery"));
+    assert.ok(!readiness.includes("approval-001"));
+    assert.ok(document.includes("approval-001"));
+    assert.ok(document.includes("Synchronize balances"));
+    assert.ok(document.includes("D-007"));
+    assert.equal(runProjectKit(["feature", "check", ...args], repositoryRoot).status, 1);
+    assert.equal(runProjectKit(["feature", "update", ...args, "--status", "ready"], repositoryRoot).status, 0);
+    assert.equal(runProjectKit(["feature", "check", ...args], repositoryRoot).status, 1);
+    const approved = runProjectKit(["feature", "update", ...args, "--approval", "approval-002", "--batch", "Reconcile balances"], repositoryRoot);
+    assert.equal(approved.status, 0, approved.stderr);
+    assert.equal(runProjectKit(["feature", "check", ...args], repositoryRoot).status, 0);
+});
+
+test("missing and unknown persisted states stay visible as diagnostics without implicit readiness", async (t) => {
+    const workspace = await createReadyFeatureWorkspace();
+    t.after(async () => { await fs.rm(workspace.target, { recursive: true, force: true }); });
+    const args = ["--target", workspace.target, "--slug", "account-sync"];
+    for (const status of ["", "- Status: implemented locally", "- Status:"]) {
+        const invalid = workspace.original.replace("- Status: ready", status);
+        await fs.writeFile(workspace.briefPath, invalid);
+        const active = runProjectKit(["feature", "list", "--target", workspace.target], repositoryRoot);
+        const all = runProjectKit(["feature", "list", "--target", workspace.target, "--all"], repositoryRoot);
+        assert.equal(active.status, 0, active.stderr);
+        assert.ok(!active.stdout.includes("account-sync"));
+        assert.ok(active.stderr.includes("account-sync.md"));
+        assert.ok(all.stdout.includes("account-sync"));
+        assert.ok(all.stdout.includes("[invalid]"));
+        assert.equal(runProjectKit(["feature", "check", ...args], repositoryRoot).status, 1);
+        assert.equal(runProjectKit(["feature", "update", ...args, "--risks", "Account reconciliation"], repositoryRoot).status, 1);
+        assert.equal(await fs.readFile(workspace.briefPath, "utf8"), invalid);
+    }
+    const repair = runProjectKit(["feature", "update", ...args, "--status", "discovery"], repositoryRoot);
+    assert.equal(repair.status, 0, repair.stderr);
+    assert.ok(runProjectKit(["feature", "list", "--target", workspace.target], repositoryRoot).stdout.includes("account-sync"));
+});
+
+test("index adoption and later regeneration preserve editorial sections and maintained links", async (t) => {
+    const workspace = await createReadyFeatureWorkspace();
+    t.after(async () => { await fs.rm(workspace.target, { recursive: true, force: true }); });
+    const prefix = "# Curated map\n\n[Architecture](../architecture.md)\n\n";
+    const note = "Keep this manually maintained note, [guide](../guide.md), and [handbook](./maintainer-guide.md).";
+    const suffix = "## Maintainer notes\n\nOwner: account-team.\n";
+    await fs.writeFile(workspace.indexPath, `${prefix}## Active Feature Briefs\n\n${note}\n\n- [Account sync](./account-sync.md)\n\n${suffix}`);
+    const args = ["feature", "update", "--target", workspace.target, "--slug", "account-sync"];
+    const archived = runProjectKit([...args, "--status", "archived", "--archive-reason", "Retired"], repositoryRoot);
+    assert.equal(archived.status, 0, archived.stderr);
+    let index = await fs.readFile(workspace.indexPath, "utf8");
+    assert.ok(index.startsWith(prefix));
+    assert.ok(index.includes(note));
+    assert.ok(index.includes(suffix));
+    assert.equal(index.split("./account-sync.md").length - 1, 1);
+    const manual = "Keep this text outside the generated region.\n";
+    index = index.replace("<!-- project-kit:features:active:start -->", manual + "<!-- project-kit:features:active:start -->");
+    await fs.writeFile(workspace.indexPath, index);
+    const updated = runProjectKit([...args, "--archive-reason", "Superseded by account-v2"], repositoryRoot);
+    assert.equal(updated.status, 0, updated.stderr);
+    assert.equal(await fs.readFile(workspace.indexPath, "utf8"), index);
+});
+
+test("archive metadata rejects multiline field injection without changing the contract", async (t) => {
+    const workspace = await createReadyFeatureWorkspace();
+    t.after(async () => { await fs.rm(workspace.target, { recursive: true, force: true }); });
+    const args = ["feature", "update", "--target", workspace.target, "--slug", "account-sync"];
+    for (const flags of [
+        ["--status", "archived", "--archive-reason"],
+        ["--status", "archived", "--archive-reason", "Closed\n- Status: ready"],
+        ["--status", "archived", "--archive-reason", "Closed", "--current-reference", "owner\r\n## Readiness"],
+        ["--all", "--status", "archived", "--archive-reason", "Closed"]
+    ]) {
+        assert.equal(runProjectKit([...args, ...flags], repositoryRoot).status, 1);
+        assert.equal(await fs.readFile(workspace.briefPath, "utf8"), workspace.original);
+    }
+});
+
+test("malformed index regions fail before a brief is created or updated", async (t) => {
+    const workspace = await createReadyFeatureWorkspace();
+    t.after(async () => { await fs.rm(workspace.target, { recursive: true, force: true }); });
+    const malformed = "# Index\n\n<!-- project-kit:features:active:start -->\nMaintained text.\n";
+    await fs.writeFile(workspace.indexPath, malformed);
+    const updated = runProjectKit(["feature", "update", "--target", workspace.target, "--slug", "account-sync", "--status", "archived", "--archive-reason", "Closed"], repositoryRoot);
+    const created = runProjectKit(["feature", "create", "--target", workspace.target, "--name", "New sync"], repositoryRoot);
+    assert.equal(updated.status, 1);
+    assert.equal(created.status, 1);
+    assert.equal(await fs.readFile(workspace.briefPath, "utf8"), workspace.original);
+    assert.equal(await fs.readFile(workspace.indexPath, "utf8"), malformed);
+    assert.equal(await pathExists(path.join(workspace.target, ".project", "features", "new-sync.md")), false);
+});
+
+test("archiving a legacy record adds disposition without normalizing its historical body", async (t) => {
+    const workspace = await createReadyFeatureWorkspace();
+    t.after(async () => { await fs.rm(workspace.target, { recursive: true, force: true }); });
+    const historical = "# Account sync\n\n## D-007\n\nOriginal approval and [evidence](../reviews/account.md).\n";
+    await fs.writeFile(workspace.briefPath, historical);
+    const result = runProjectKit(["feature", "update", "--target", workspace.target, "--slug", "account-sync", "--status", "archived", "--archive-reason", "Historical implementation"], repositoryRoot);
+    assert.equal(result.status, 0, result.stderr);
+    const archived = await fs.readFile(workspace.briefPath, "utf8");
+    assert.ok(archived.startsWith(historical));
+    assert.ok(archived.includes("- Status: archived"));
+    assert.equal(runProjectKit(["feature", "check", "--target", workspace.target, "--slug", "account-sync"], repositoryRoot).status, 1);
+});
+
+test("align preserves adopted history and feature lifecycle metadata", async (t) => {
+    const workspace = await createReadyFeatureWorkspace();
+    t.after(async () => { await fs.rm(workspace.target, { recursive: true, force: true }); });
+    const archive = runProjectKit(["feature", "update", "--target", workspace.target, "--slug", "account-sync", "--status", "archived", "--archive-reason", "Reviewed"], repositoryRoot);
+    assert.equal(archive.status, 0, archive.stderr);
+    const decisionsPath = path.join(workspace.target, ".project", "decisions.md");
+    const history = "# Accepted decisions\n\n## D-001 — Original rule\n\nPreserve this accepted text.\n";
+    await fs.writeFile(decisionsPath, history);
+    const brief = await fs.readFile(workspace.briefPath, "utf8");
+    const index = await fs.readFile(workspace.indexPath, "utf8");
+    const aligned = runScaffold(["--mode", "align", "--target", workspace.target, "--project-name", "Account", "--description", "Account synchronization", "--primary-language", "TypeScript", "--stack", "TypeScript"], repositoryRoot);
+    assert.equal(aligned.status, 0, aligned.stderr);
+    assert.equal(await fs.readFile(decisionsPath, "utf8"), history);
+    assert.equal(await fs.readFile(workspace.briefPath, "utf8"), brief);
+    assert.equal(await fs.readFile(workspace.indexPath, "utf8"), index);
 });

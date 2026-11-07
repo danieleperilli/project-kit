@@ -6,7 +6,7 @@ Do not read every project document by default.
 
 Keep the combined project instruction chain below Codex's default `project_doc_max_bytes` limit of 32 KiB (32,768 bytes). Keep this root file concise and place task-specific context in `.project/` documents that are loaded only when relevant.
 
-Always start with task files. For non-trivial implementation work, also read `.project/overview.md`, `.project/architecture.md`, and `.project/constraints.md` before editing.
+Start with the active task and brief. For non-trivial implementation, read the overview and architecture map, then only the applicable constraints and domain references. Current owners state the rule; historical decisions explain its origin.
 
 Load additional context only when it applies:
 
@@ -15,8 +15,9 @@ Load additional context only when it applies:
 - `CHANGELOG.md`: release notes; only `Unreleased` unless history is requested.
 - `CODE_STYLE.md`: before source edits, if present.
 - `.project/features/index.md`: feature brief lookup.
-- Relevant `.project/features/*.md`: changed feature only.
-- `.project/decisions.md`: durable decision check or addition.
+- Relevant active `.project/features/*.md`: changed feature and current batch only. Use `project-kit feature list` to select active work.
+- `.project/decisions.md` and `.project/history/decisions/YYYY-MM.md`: search by decision ID or affected domain only when provenance or conflicting intent matters; read matching records and their necessary supersession chain.
+- Archived briefs and review records: historical evidence on request, never fresh implementation authority.
 - `.project/review-checklist.md`: before non-trivial handoff.
 - `.project/design/README.md`, `flows.md`, and `sources.md`: UI or design alignment.
 
@@ -49,6 +50,7 @@ Load additional context only when it applies:
 
 - Every non-trivial feature or behavior change requires a relevant feature brief. Small maintenance changes may use the user request as the batch contract when no durable feature behavior changes.
 - A newly created feature brief defaults to `discovery`, not implementation authorization.
+- An `archived` brief is historical even if it retains an earlier approval. Reopen explicitly in `discovery` and obtain approval for the new batch.
 - Do not edit product code while the brief is in `discovery`, contains open decisions, or has an incomplete change contract.
 - Only the user can authorize a transition to `ready`. The agent may draft the contract but must record concrete approval evidence and must not self-approve it.
 - Before implementation, run `project-kit feature check --slug <feature-slug>` when the CLI is available. If it fails, refine the brief or ask for the missing decision.
@@ -154,10 +156,13 @@ Apply this gate during both batch planning and the Reviewer phase.
 - Do not duplicate code contracts or directory listings in docs.
 - Treat `.project/features/index.md` as the map of the feature brief directory.
 - Treat the relevant `.project/features/*.md` file as the source of truth for feature scope, acceptance, and review focus.
-- Keep readiness, current batch, change contract, verification, and required follow-up tasks aligned with the implementation.
+- Keep one current batch, its approval, change contract and verification in an active brief. Update its summary during rework instead of appending a diary.
 - Update `.project/constraints.md` when durable product, technical, security, or delivery constraints change.
 - If `.project/design/` exists, keep asset references, flow notes, and remote design sources aligned with the implementation.
-- Append a dated note to `.project/decisions.md` when a technical or workflow decision becomes durable.
+- Record an accepted durable rule change once in `.project/history/decisions/YYYY-MM.md`; create a monthly file only when needed and link it from `.project/decisions.md`. Preserve the project's ID sequence, accepted text, headings and existing links. For an existing monolithic log, adopt monthly records explicitly and retain the old log in place.
+- Keep the current rule at one owner in constraints or architecture, with links to its decision evidence. Supersede historical decisions explicitly; do not rewrite them as current rules.
+- Keep one concise final review receipt per batch with checks, outcomes and remaining risks. Preserve material approvals and evidence; omit chat transcripts and raw terminal dumps.
+- Archive closed or superseded briefs with a reason and a current reference when one exists. Use `feature list --all` to retrieve them. Preserve paths and anchors; archive status does not imply successful completion.
 - Add a changelog entry for every meaningful change.
 - Use `Unreleased > Codex Log` for agent-maintained notes when the work should be tracked but does not justify a version bump yet.
 - Surface assumptions clearly when the repository does not provide enough context.

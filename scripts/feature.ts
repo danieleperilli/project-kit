@@ -1,6 +1,6 @@
 const fs = require("node:fs/promises") as typeof import("node:fs/promises");
 const path = require("node:path") as typeof import("node:path");
-const featureBrief = require("./feature-brief.ts") as typeof import("./feature-brief");
+const featureBrief = require("./feature-brief.ts") as import("./feature-brief").IFeatureBriefRenderer;
 
 interface IFeatureCommandOptions {
     command: "create" | "update" | "check" | "list";
@@ -9,6 +9,7 @@ interface IFeatureCommandOptions {
     slug: string | null;
     renameSlug: string | null;
     force: boolean;
+    all: boolean;
     input: IFeatureBriefInput;
 }
 
@@ -17,6 +18,8 @@ interface IFeatureBriefInput {
     approvalEvidence?: string | null;
     approvedDecisions?: string[];
     openDecisions?: string[];
+    archiveReason?: string | null;
+    currentReference?: string | null;
     problem?: string | null;
     outcome?: string | null;
     behavior?: string[];
@@ -42,7 +45,7 @@ interface IFeatureBriefInput {
 interface IFeatureEntry {
     slug: string;
     title: string;
-    status: FeatureStatus;
+    status: FeatureStatus | null;
     path: string;
 }
 
@@ -58,10 +61,12 @@ interface IDesignReferenceFields {
 }
 
 interface IReadinessFields {
-    status: FeatureStatus;
+    status: FeatureStatus | null;
     approvalEvidence: string | null;
     approvedDecisions: string[];
     openDecisions: string[];
+    archiveReason: string | null;
+    currentReference: string | null;
 }
 
 interface IChangeContractFields {
@@ -72,7 +77,7 @@ interface IChangeContractFields {
     uiMaturity: UiMaturity;
 }
 
-type FeatureStatus = "discovery" | "ready";
+type FeatureStatus = "discovery" | "ready" | "archived";
 type UiMaturity = "unassessed" | "none" | "final" | "provisional";
 
 const HELP_FLAGS = new Set(["--help", "-h"]);
@@ -103,7 +108,10 @@ function buildHelpText(): string {
         "  --name <name>                 Feature name for create, or updated title for update.",
         "  --slug <slug>                 Existing feature slug for update or check.",
         "  --rename-slug <slug>          Rename the feature file during update.",
-        "  --status <discovery|ready>    Feature delivery readiness.",
+        "  --status <discovery|ready|archived> Feature delivery readiness or historical record.",
+        "  --archive-reason <text>       Why this brief is historical; required when archiving.",
+        "  --current-reference <text>    Current owner or successor, when one exists.",
+        "  --all                         Include archived and invalid briefs when listing.",
         "  --approval <text>             Evidence of the user's batch approval.",
         "  --approved-decisions <a,b>    Comma-separated decisions approved for this batch.",
         "  --open-decisions <a,b|none>   Blocking decisions; use none after they are resolved.",
@@ -190,8 +198,8 @@ function parseFeatureInput(values: Map<string, string>): IFeatureBriefInput {
     const uiMaturity = values.get("ui-maturity");
     const openDecisions = values.get("open-decisions");
 
-    if (status && status !== "discovery" && status !== "ready") {
-        throw new Error(`Invalid --status value: ${status}. Use discovery or ready.`);
+    if (status !== undefined && status !== "discovery" && status !== "ready" && status !== "archived") {
+        throw new Error(`Invalid --status value: ${status}. Use discovery, ready, or archived.`);
     }
 
     if (uiMaturity && uiMaturity !== "unassessed" && uiMaturity !== "none" && uiMaturity !== "final" && uiMaturity !== "provisional") {
@@ -200,6 +208,8 @@ function parseFeatureInput(values: Map<string, string>): IFeatureBriefInput {
 
     return {
         status: status as FeatureStatus | undefined,
+        archiveReason: values.get("archive-reason"),
+        currentReference: values.get("current-reference"),
         approvalEvidence: values.get("approval") ?? undefined,
         approvedDecisions: parseList(values.get("approved-decisions")),
         openDecisions: openDecisions?.trim().toLowerCase() === "none" ? [] : parseList(openDecisions),
@@ -245,6 +255,10 @@ function parseArgs(argv: string[], cwd: string): IFeatureCommandOptions {
         }
 
         const key = token.slice(2);
+        if (key === "all") {
+            flags.add(key);
+            continue;
+        }
         const nextToken = argv[index + 1];
 
         if (!nextToken || nextToken.startsWith("--")) {
@@ -260,6 +274,13 @@ function parseArgs(argv: string[], cwd: string): IFeatureCommandOptions {
 
     if (command !== "create" && command !== "update" && command !== "check" && command !== "list") {
         throw new Error("Missing or invalid feature command. Use create, update, check, or list.");
+    }
+    if (flags.has("all") && command !== "list") {
+        throw new Error("--all applies only to feature list.");
+    }
+    for (const key of ["status", "archive-reason", "current-reference"]) {
+        if (flags.has(key)) throw new Error(`Missing value for --${key}.`);
+        if (/[\r\n]/.test(values.get(key) ?? "")) throw new Error(`--${key} must fit on one line.`);
     }
 
     const target = values.get("target") ? path.resolve(cwd, values.get("target") as string) : cwd;
@@ -290,6 +311,7 @@ function parseArgs(argv: string[], cwd: string): IFeatureCommandOptions {
         slug,
         renameSlug,
         force: flags.has("force"),
+        all: flags.has("all"),
         input: parseFeatureInput(values)
     };
 }
@@ -441,15 +463,17 @@ function readDesignReferenceFields(document: string): IDesignReferenceFields {
  * @param {string} document
  */
 function readReadinessFields(document: string): IReadinessFields {
-    const body = readSectionBody(document, "Readiness");
+    const body = readOptionalSectionBody(document, "Readiness") ?? "";
     const lines = body.split("\n").map((line) => line.trim());
     const status = readSingleField(lines, "- Status:");
 
     return {
-        status: status === "ready" ? "ready" : "discovery",
+        status: status === "discovery" || status === "ready" || status === "archived" ? status : null,
         approvalEvidence: readSingleField(lines, "- Approval evidence:"),
         approvedDecisions: readListField(lines, "- Approved decisions:"),
-        openDecisions: readListField(lines, "- Open decisions:")
+        openDecisions: readListField(lines, "- Open decisions:"),
+        archiveReason: readSingleField(lines, "- Archive reason:"),
+        currentReference: readSingleField(lines, "- Current reference:")
     };
 }
 
@@ -531,22 +555,57 @@ function hasDocumentChanges(options: IFeatureCommandOptions): boolean {
  * @param {IFeatureCommandOptions} options
  */
 function applyFeatureUpdates(document: string, options: IFeatureCommandOptions): string {
-    let updatedDocument = ensureFeatureDeliverySections(document);
+    const previousReadiness = readReadinessFields(document);
+    const nextStatus = options.input.status ?? previousReadiness.status;
+    if (nextStatus === null) {
+        throw new Error("The brief has a missing or unknown status. Set --status explicitly before updating it.");
+    }
+    const reopening = previousReadiness.status === "archived" && options.input.status !== undefined && options.input.status !== "archived";
+    if (reopening && (options.input.status !== "discovery" || options.input.approvalEvidence !== undefined)) {
+        throw new Error("Reopen an archived brief with --status discovery, then obtain approval for the new batch.");
+    }
+    const archiveReason = options.input.archiveReason ?? previousReadiness.archiveReason;
+    if (nextStatus === "archived" && !archiveReason?.trim()) {
+        throw new Error("Archiving requires --archive-reason.");
+    }
+    if (nextStatus !== "archived" && (options.input.archiveReason !== undefined || options.input.currentReference !== undefined)) {
+        throw new Error("Archive metadata applies only to an archived brief.");
+    }
+    let updatedDocument = nextStatus === "archived" ? document : ensureFeatureDeliverySections(document);
+    if (readOptionalSectionBody(updatedDocument, "Readiness") === null) {
+        updatedDocument = `${updatedDocument.trimEnd()}\n\n## Readiness\n\n`;
+    }
+    if (reopening) {
+        const record = [
+            `- Previous batch: ${readBulletItems(document, "Current batch").join("; ")}`,
+            `  Approval evidence: ${previousReadiness.approvalEvidence ?? "None"}`,
+            `  Approved decisions: ${previousReadiness.approvedDecisions.join("; ")}`,
+            `  Archive reason: ${previousReadiness.archiveReason ?? "None"}`,
+            `  Current reference: ${previousReadiness.currentReference ?? "None"}`
+        ].join("\n");
+        const history = readOptionalSectionBody(updatedDocument, "Previous batches");
+        updatedDocument = history === null ?
+            `${updatedDocument.trimEnd()}\n\n## Previous batches\n\n${record}\n` :
+            replaceSectionBody(updatedDocument, "Previous batches", `${history}\n\n${record}`);
+        updatedDocument = replaceSectionBody(updatedDocument, "Current batch", featureBrief.buildCurrentBatchSection(undefined));
+    }
 
     if (options.name) {
         updatedDocument = replaceTitle(updatedDocument, options.name);
     }
 
-    if (options.input.status !== undefined || options.input.approvalEvidence !== undefined || options.input.approvedDecisions !== undefined || options.input.openDecisions !== undefined) {
+    if (options.input.status !== undefined || options.input.approvalEvidence !== undefined || options.input.approvedDecisions !== undefined || options.input.openDecisions !== undefined || options.input.archiveReason !== undefined || options.input.currentReference !== undefined) {
         const currentReadiness = readReadinessFields(updatedDocument);
         updatedDocument = replaceSectionBody(
             updatedDocument,
             "Readiness",
             featureBrief.buildReadinessSection(
-                options.input.status ?? currentReadiness.status,
-                options.input.approvalEvidence !== undefined ? options.input.approvalEvidence : currentReadiness.approvalEvidence,
+                nextStatus,
+                reopening ? null : options.input.approvalEvidence !== undefined ? options.input.approvalEvidence : currentReadiness.approvalEvidence,
                 options.input.approvedDecisions ?? currentReadiness.approvedDecisions,
-                options.input.openDecisions ?? currentReadiness.openDecisions
+                options.input.openDecisions ?? currentReadiness.openDecisions,
+                archiveReason,
+                options.input.currentReference ?? currentReadiness.currentReference
             )
         );
     }
@@ -656,8 +715,8 @@ async function readFeatureEntries(targetRoot: string): Promise<IFeatureEntry[]> 
         const document = await fs.readFile(featurePath, "utf8");
         const titleMatch = document.match(/^# (.+)$/m);
         const title = titleMatch ? titleMatch[1].trim() : path.basename(featurePath, ".md");
-        const readinessBody = readOptionalSectionBody(document, "Readiness");
-        const status = readinessBody === null ? "discovery" : readReadinessFields(document).status;
+        const status = readReadinessFields(document).status;
+        if (status === null) process.stderr.write(`Feature brief ${fileName} has a missing or unknown status; it is excluded from active work.\n`);
 
         featureEntries.push({
             slug: fileName.slice(0, -3),
@@ -678,7 +737,7 @@ async function readFeatureEntries(targetRoot: string): Promise<IFeatureEntry[]> 
  */
 function buildFeatureIndexSummary(featureEntries: IFeatureEntry[]): string {
     if (featureEntries.length === 0) {
-        return "- Create a discovery brief just in time when the next feature is selected.";
+        return "";
     }
 
     return featureEntries
@@ -687,33 +746,59 @@ function buildFeatureIndexSummary(featureEntries: IFeatureEntry[]): string {
 }
 
 /**
- * Keep the feature index aligned with the actual feature brief files.
+ * Refresh an owned index region, adopting legacy generated links without replacing surrounding notes.
+ * @param document Existing feature index
+ * @param heading Section used by earlier indexes
+ * @param region Stable generated-region identifier
+ * @param summary Current links owned by the CLI
+ * @param managedLinks Exact generated links in the previous or next inventory
+ */
+function updateFeatureIndexRegion(document: string, heading: string, region: string, summary: string, managedLinks: ReadonlySet<string>): string {
+    const start = `<!-- project-kit:features:${region}:start -->`;
+    const end = `<!-- project-kit:features:${region}:end -->`;
+    const startIndex = document.indexOf(start);
+    const endIndex = document.indexOf(end);
+    const block = `${start}\n${summary ? `${summary}\n` : ""}${end}`;
+    if (startIndex !== -1 || endIndex !== -1) {
+        if (startIndex === -1 || endIndex < startIndex || document.indexOf(start, startIndex + start.length) !== -1 || document.indexOf(end, endIndex + end.length) !== -1) {
+            throw new Error(`Malformed generated index region: ${region}.`);
+        }
+        return document.slice(0, startIndex) + block + document.slice(endIndex + end.length);
+    }
+    const section = new RegExp(`(^## ${escapeRegExp(heading)}\\n)([\\s\\S]*?)(?=^## |(?![\\s\\S]))`, "m");
+    if (!section.test(document)) return `${document.trimEnd()}\n\n## ${heading}\n\n${block}\n`;
+    return document.replace(section, (_match: string, prefix: string, body: string) => {
+        // Older CLI versions owned direct feature links in this section, but not its editorial notes.
+        const notes = body.split("\n").filter(line => !managedLinks.has(line.trimEnd()) && line.trimEnd() !== "- Create a discovery brief just in time when the next feature is selected.").join("\n");
+        return `${prefix}${notes.trim() ? notes.trimEnd() + "\n\n" : "\n"}${block}\n\n`;
+    });
+}
+
+/**
+ * Prepare the next index before writing a brief so malformed index regions fail without mutation.
  * @param {string} skillRoot
  * @param {string} targetRoot
+ * @param {IFeatureEntry} replacement Created or updated brief
+ * @param {string | undefined} previousSlug Original identity when renaming a brief
  */
-async function syncFeatureIndex(skillRoot: string, targetRoot: string): Promise<void> {
+async function prepareFeatureIndex(skillRoot: string, targetRoot: string, replacement: IFeatureEntry, previousSlug?: string): Promise<string> {
     const indexPath = getFeatureIndexPath(targetRoot);
     const templatePath = path.join(skillRoot, "templates", "base", ".project", "features", "index.md");
     const template = await fs.readFile(templatePath, "utf8");
-    const featureEntries = await readFeatureEntries(targetRoot);
-    const summary = buildFeatureIndexSummary(featureEntries);
+    const previousEntries = await readFeatureEntries(targetRoot);
+    const featureEntries = [...previousEntries.filter(entry => entry.slug !== replacement.slug && entry.slug !== previousSlug), replacement].sort((left, right) => left.title.localeCompare(right.title));
+    const managedLinks = new Set([...previousEntries, replacement].map(entry => `- [${entry.title}](./${entry.slug}.md)`));
+    const summary = buildFeatureIndexSummary(featureEntries.filter(entry => entry.status === "discovery" || entry.status === "ready"));
+    const archivedSummary = buildFeatureIndexSummary(featureEntries.filter(entry => entry.status === "archived"));
     const renderedTemplate = template.replaceAll("{{featureIndexSummary}}", summary);
 
     if (!(await pathExists(indexPath))) {
-        await fs.writeFile(indexPath, renderedTemplate, "utf8");
-        return;
+        return updateFeatureIndexRegion(renderedTemplate, "Archived Feature Briefs", "archived", archivedSummary, managedLinks);
     }
 
     const currentDocument = await fs.readFile(indexPath, "utf8");
 
-    if (!/^## Active Feature Briefs$/m.test(currentDocument)) {
-        await fs.writeFile(indexPath, renderedTemplate, "utf8");
-        return;
-    }
-
-    const nextDocument = replaceSectionBody(currentDocument, "Active Feature Briefs", summary);
-
-    await fs.writeFile(indexPath, nextDocument, "utf8");
+    return updateFeatureIndexRegion(updateFeatureIndexRegion(currentDocument, "Active Feature Briefs", "active", summary, managedLinks), "Archived Feature Briefs", "archived", archivedSummary, managedLinks);
 }
 
 /**
@@ -725,6 +810,12 @@ async function createFeature(skillRoot: string, options: IFeatureCommandOptions)
     const featureName = options.name as string;
     const featureSlug = featureBrief.buildFeatureSlug(featureName);
     const featurePath = path.join(getFeatureDirectory(options.target), `${featureSlug}.md`);
+    if (options.input.status === "archived" && !options.input.archiveReason?.trim()) {
+        throw new Error("Archiving requires --archive-reason.");
+    }
+    if (options.input.status !== "archived" && (options.input.archiveReason !== undefined || options.input.currentReference !== undefined)) {
+        throw new Error("Archive metadata applies only to an archived brief.");
+    }
 
     if (await pathExists(featurePath)) {
         if (!options.force) {
@@ -733,9 +824,10 @@ async function createFeature(skillRoot: string, options: IFeatureCommandOptions)
     }
 
     const document = `${featureBrief.buildFeatureBriefDocument(featureName, options.input)}\n`;
+    const index = await prepareFeatureIndex(skillRoot, options.target, { slug: featureSlug, title: featureName, status: options.input.status ?? "discovery", path: featurePath });
 
     await fs.writeFile(featurePath, document, "utf8");
-    await syncFeatureIndex(skillRoot, options.target);
+    await fs.writeFile(getFeatureIndexPath(options.target), index, "utf8");
     process.stdout.write(`Created feature brief ${featureSlug} in ${featurePath}.\n`);
 }
 
@@ -765,6 +857,8 @@ async function updateFeature(skillRoot: string, options: IFeatureCommandOptions)
     if (nextPath !== currentPath && await pathExists(nextPath) && !options.force) {
         throw new Error(`Feature brief already exists: ${nextPath}. Use --force to overwrite it.`);
     }
+    const title = updatedDocument.match(/^# (.+)$/m)?.[1].trim() ?? nextSlug;
+    const index = await prepareFeatureIndex(skillRoot, options.target, { slug: nextSlug, title, status: readReadinessFields(updatedDocument).status, path: nextPath }, currentSlug);
 
     if (nextPath !== currentPath) {
         await fs.writeFile(nextPath, updatedDocument, "utf8");
@@ -773,7 +867,7 @@ async function updateFeature(skillRoot: string, options: IFeatureCommandOptions)
         await fs.writeFile(currentPath, updatedDocument, "utf8");
     }
 
-    await syncFeatureIndex(skillRoot, options.target);
+    await fs.writeFile(getFeatureIndexPath(options.target), index, "utf8");
     process.stdout.write(nextPath === currentPath ?
         `Updated feature brief ${currentSlug} in ${currentPath}.\n` :
         `Updated feature brief ${currentSlug} and renamed it to ${nextSlug}.\n`);
@@ -804,6 +898,9 @@ function readBulletItems(document: string, heading: string): string[] {
  * @param {string} document
  */
 function validateFeatureReadiness(document: string): string[] {
+    const status = readReadinessFields(document).status;
+    if (status === null) return ["Readiness status is missing or unknown; set it explicitly before implementation."];
+    if (status === "archived") return ["An archived brief is historical evidence and cannot authorize implementation."];
     const issues: string[] = [];
     const readinessBody = readOptionalSectionBody(document, "Readiness");
     const goalBody = readOptionalSectionBody(document, "Goal");
@@ -913,9 +1010,10 @@ async function checkFeature(options: IFeatureCommandOptions): Promise<void> {
 /**
  * List the current feature brief files.
  * @param {string} targetRoot
+ * @param {boolean} all Include archived and invalid briefs
  */
-async function listFeatures(targetRoot: string): Promise<void> {
-    const featureEntries = await readFeatureEntries(targetRoot);
+async function listFeatures(targetRoot: string, all: boolean): Promise<void> {
+    const featureEntries = (await readFeatureEntries(targetRoot)).filter(entry => all || entry.status === "discovery" || entry.status === "ready");
 
     if (featureEntries.length === 0) {
         process.stdout.write(`No feature briefs found in ${getFeatureDirectory(targetRoot)}.\n`);
@@ -924,7 +1022,7 @@ async function listFeatures(targetRoot: string): Promise<void> {
 
     const lines = [
         `Feature briefs in ${getFeatureDirectory(targetRoot)}:`,
-        ...featureEntries.map((featureEntry) => `- ${featureEntry.slug} :: ${featureEntry.title} [${featureEntry.status}]`)
+        ...featureEntries.map((featureEntry) => `- ${featureEntry.slug} :: ${featureEntry.title} [${featureEntry.status ?? "invalid"}]`)
     ];
 
     process.stdout.write(`${lines.join("\n")}\n`);
@@ -962,7 +1060,7 @@ async function main(): Promise<void> {
         return;
     }
 
-    await listFeatures(options.target);
+    await listFeatures(options.target, options.all);
 }
 
 main().catch((error: unknown) => {

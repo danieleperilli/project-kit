@@ -1,5 +1,7 @@
 # Overview
 
+Describe the current product, scope and value. Link to the affected architecture or constraints owner instead of repeating its rules. Delivery chronology belongs in review or decision history.
+
 ## Goal
 
 {{description}}

@@ -48,4 +48,7 @@ Use this checklist before a non-trivial batch is accepted.
 
 - Is the diff small enough to review?
 - Are docs and changelog updated where durable context changed?
+- Does each current rule have one owner, with history linked rather than copied into the active contract?
+- Are closed or superseded briefs archived with their paths, IDs, approvals and evidence preserved?
+- Does the final batch receipt summarize actual verification without a transcript or repeated rework diary?
 - Does the handoff enumerate actual persistence, API, configuration/resource, and UI changes plus exact automated and local verification evidence?

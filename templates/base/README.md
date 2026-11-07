@@ -7,7 +7,7 @@
 - Humans own architecture, scope, final UI/UX direction, review, and release decisions.
 - Codex helps with implementation, repository analysis, and controlled documentation updates.
 - This baseline is architecture-first and review-gated: use small implementation batches and review every non-trivial change before moving on.
-- Durable context lives in `.project/overview.md`, `.project/architecture.md`, `.project/constraints.md`, `.project/decisions.md`, `.project/features/index.md`, and `.project/review-checklist.md`.
+- Current context lives in overview, architecture, constraints and active feature briefs under `.project/`. The review checklist links completion checks. Decision history and archived briefs retain provenance and are consulted selectively.
 - When the project has UI, treat `.project/design/` as the source of truth. Without a precise design, a functional provisional UI is allowed for validation but requires a final UI refinement task before feature completion.
 - Coding conventions live in `CODE_STYLE.md`.
 - Project name and version live in the project manifest.
@@ -23,6 +23,7 @@
 3. Add or update `.project/design/` assets and notes when UI behavior or layout matters.
 4. Ask Codex to implement the one ready, risk-focused batch named in the brief.
 5. Run automated checks, exercise the real local user journey, and review the resulting diff against `.project/review-checklist.md` before the next batch.
+6. Keep one concise final review receipt and archive the closed brief with a reason. An archived approval cannot authorize a new batch; reopening begins in discovery.
 
 ## Stack
 

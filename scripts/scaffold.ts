@@ -1,7 +1,7 @@
 const fs = require("node:fs/promises") as typeof import("node:fs/promises");
 const childProcess = require("node:child_process") as typeof import("node:child_process");
 const path = require("node:path") as typeof import("node:path");
-const featureBrief = require("./feature-brief.ts") as typeof import("./feature-brief");
+const featureBrief = require("./feature-brief.ts") as import("./feature-brief").IFeatureBriefRenderer;
 
 interface IScaffoldOptions {
     mode: "init" | "align";
@@ -462,7 +462,7 @@ async function ensureTargetRoot(options: IScaffoldOptions): Promise<void> {
  * @param {string[]} args
  * @param {string} cwd
  */
-function runGitCommand(args: string[], cwd: string): childProcess.SpawnSyncReturns<string> {
+function runGitCommand(args: string[], cwd: string): import("node:child_process").SpawnSyncReturns<string> {
     const result = childProcess.spawnSync("git", args, {
         cwd,
         encoding: "utf8"
@@ -757,7 +757,7 @@ function buildFeatureDefinitions(features: string[]): IFeatureDefinition[] {
  */
 function buildFeatureIndexSummary(featureDefinitions: IFeatureDefinition[]): string {
     if (featureDefinitions.length === 0) {
-        return "- Create a discovery brief just in time when the next feature is selected.";
+        return "";
     }
 
     return featureDefinitions

@@ -6,11 +6,17 @@ This project follows Semantic Versioning.
 
 ### Added
 
+- Added archived feature briefs with a reason and optional current reference, plus explicit historical listing with `feature list --all`.
+
 - Root project changelog for tracking meaningful Project Kit changes.
 - Added the opt-in `react-spa` project type with a bundled TypeScript, React, and Vite application starter.
 - Added `projectType` metadata, the `--project-type` CLI option, rendered application metadata, binary template copying, and preflight collision checks.
 
 ### Changed
+
+- Separated current rule owners from monthly decision history and concise final batch evidence; existing project adoption remains explicit.
+- Restricted active feature indexes and default listing to valid discovery/ready briefs. Reopening clears the old batch approval while retaining its provenance.
+- Preserved editorial index content outside generated link regions, including during adoption of legacy indexes.
 
 - Repositioned Project Kit around an architecture-first, developer-led Codex workflow with feature briefs, review gates, and human-owned design context.
 - Updated the scaffold to generate `.project/constraints.md`, `.project/review-checklist.md`, `.project/features/index.md`, per-feature brief files, and richer optional `.project/design/` files.
@@ -22,6 +28,8 @@ This project follows Semantic Versioning.
 - Kept application project types init-only so `align` cannot inject product code into an existing repository.
 
 ### Fixed
+
+- Reported missing or unknown feature states instead of silently treating them as discovery.
 
 - Fixed feature updates so replacing a multi-line section removes all previous fields instead of retaining stale lines.
 

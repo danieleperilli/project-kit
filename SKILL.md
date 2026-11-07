@@ -59,6 +59,7 @@ Classify the request before making changes:
   - `project.json` as a generic fallback
 - Treat `.project/features/index.md` as the map of the feature brief directory.
 - Treat each `.project/features/*.md` file as the source of truth for feature scope, acceptance, and review focus.
+- Only active discovery/ready briefs describe current work. Archived briefs retain evidence and cannot authorize implementation.
 - Do not create a contracts directory by default. Introduce explicit contract docs only when the project needs them.
 - Avoid placeholder noise. Prompts like "Primary outcome:" are acceptable; `TODO` filler is not.
 - Repository configuration overrides project style guides. Treat project style files as defaults, not as higher-precedence truth.
@@ -145,11 +146,17 @@ Use these files to capture stable project truth:
 - `.project/constraints.md`
   Product, technical, security, and delivery constraints.
 - `.project/decisions.md`
-  Append-only log of durable decisions.
+  Historical decision entry point. Current rules live at their architecture or constraints owner.
+
+Read the overview and architecture map first, then only affected constraints, domain references and the current batch. Search historical records by ID or domain when intent, rationale or supersession is relevant; do not load the complete log, all briefs or all reviews by default.
+
+Record accepted durable rule changes in `.project/history/decisions/YYYY-MM.md`, creating a monthly file only when the first decision needs it and linking it from `.project/decisions.md`. Keep the repository's ID sequence across periods and preserve accepted text, headings and references. For existing projects, adopt this layout explicitly and retain an old monolithic log in place. `align` preserves existing files; never use `--force` as a documentation migration.
+
+Update one current rule owner and link its decision evidence. Routine implementation edits do not need a decision entry. During rework, revise the active brief's current batch; retain one concise final review receipt with checks, outcomes and remaining risks. Preserve material approval and evidence without copying chat transcripts or raw terminal output.
 
 ### 3. Define feature briefs
 
-Use `.project/features/` for just-in-time feature briefs. A newly created brief defaults to `discovery`; it becomes implementation-ready only after its status is `ready` and `project-kit feature check` succeeds.
+Use `.project/features/` for just-in-time feature briefs. A newly created brief defaults to `discovery`; it becomes implementation-ready only after its status is `ready` and `project-kit feature check` succeeds. Close or supersede it with `archived`, a reason and a current reference when one exists. Preserve its path and historical approvals; archival does not imply successful completion.
 Each feature file should capture:
 
 - readiness, user approval evidence, approved decisions, and open decisions;
@@ -197,7 +204,7 @@ The delivery primitive is a small implementation batch that a human can review.
 For every non-trivial batch:
 
 - align the work with `.project/architecture.md`, `.project/constraints.md`, and the relevant feature brief;
-- do not edit product code while the brief is in `discovery`, has open decisions, or fails `project-kit feature check`;
+- do not edit product code while the brief is in `discovery`, is archived, has an unknown status, has open decisions, or fails `project-kit feature check`;
 - only the user can authorize the transition to `ready`; the agent may draft the contract but must record concrete approval evidence instead of self-approving it;
 - state one concise change contract before implementation: approved decisions, current batch, explicit non-goals, affected persistence, APIs, configuration/resources, UI, verification, and review risks;
 - challenge speculative abstractions, future configuration, duplicated validation, and unrelated cleanup during planning, before they enter the diff;
@@ -265,6 +272,9 @@ node --experimental-strip-types scripts/feature.ts update \
   --risks "Authentication boundary"
 node --experimental-strip-types scripts/feature.ts check --slug user-authentication
 node --experimental-strip-types scripts/feature.ts list
+node --experimental-strip-types scripts/feature.ts update --slug user-authentication --status archived --archive-reason "Delivered and reviewed" --current-reference ".project/architecture.md"
+node --experimental-strip-types scripts/feature.ts list --all
+node --experimental-strip-types scripts/feature.ts update --slug user-authentication --status discovery
 ```
 
 Use this command to:
@@ -274,6 +284,10 @@ Use this command to:
 - make the current implementation batch and all affected surfaces explicit;
 - verify that no blocking decision or required evidence is missing before code changes begin;
 - inspect the current feature brief inventory and readiness statuses without touching scaffold files.
+
+Default listing and the active index exclude archives and invalid states; `list --all` includes them for diagnosis. Missing or unknown states are reported rather than inferred. Reopening an archive explicitly returns it to discovery, retains the previous batch/approval in its history, and clears current approval and batch; obtain fresh approval before marking the new batch ready.
+
+The CLI maintains only marked link regions in the feature index. On the first update of a legacy index it adopts direct feature links under its existing generated section while preserving surrounding editorial notes. Keep manually maintained notes and links outside those marked regions.
 
 ## Output Standard
 

@@ -11,15 +11,15 @@
 
 ## Context Loading
 
-Start with `AGENTS.md` and task files. For non-trivial implementation work, also read `.project/overview.md`, `.project/architecture.md`, and `.project/constraints.md` before editing.
+Start with `AGENTS.md`, the active brief, overview and architecture map. Read only the constraints and domain references affected by the current batch.
 
 Load additional context only when it applies:
 
 - `README.md`: purpose, setup, workflow.
 - `CHANGELOG.md`: release notes; only `Unreleased` unless history is requested.
 - `CODE_STYLE.md`: before source edits, if present.
-- `.project/features/index.md` and relevant `.project/features/*.md`: feature-scoped work.
-- `.project/decisions.md`: durable decision check or addition.
+- `.project/features/index.md` and relevant active briefs: current batch scope. Use `feature list --all` only when history is needed.
+- `.project/decisions.md` and monthly history: targeted decision or supersession checks, not routine full-history loading.
 - `.project/review-checklist.md`: before non-trivial handoff.
 - `.project/design/README.md`, `flows.md`, and `sources.md`: UI or design alignment.
 
@@ -32,6 +32,7 @@ Load additional context only when it applies:
 5. Run relevant automated checks and exercise the real local user journey.
 6. Review the diff against `.project/review-checklist.md` before the next batch.
 7. Add a changelog entry for every meaningful change included in a pull request.
+8. Archive the brief when its scope closes or is superseded. Record why and link to the current owner when one exists; reopening starts in discovery with fresh approval.
 
 When no precise design exists, a functional provisional UI is acceptable for validation. Mark it as `provisional` in the feature brief and create a final UI refinement task before the feature is considered complete. Under Control Room, enqueue it as a dependent top-level task and record its task ID.
 
@@ -39,9 +40,10 @@ When no precise design exists, a functional provisional UI is acceptable for val
 
 - Update `.project/overview.md`, `.project/architecture.md`, and `.project/constraints.md` when durable context changes.
 - Keep `.project/features/index.md` as the map of the feature brief directory.
-- Update the relevant `.project/features/*.md` file when stable feature behavior or boundaries change.
+- Keep the active brief focused on one batch; update it during rework instead of appending each iteration.
 - Keep its readiness, current batch, explicit impact contract, local verification, and required follow-up tasks aligned with the implementation.
-- Add a dated note to `.project/decisions.md` when a decision becomes worth preserving.
+- Record accepted durable rule changes in monthly `.project/history/decisions/YYYY-MM.md` files, linked from `.project/decisions.md`. Preserve established IDs, headings and accepted text. Adoption in an existing repository is explicit; keep its old log and links intact.
+- Keep current rules in their architecture or constraints owner and link to historical evidence. Maintain one concise final review receipt per batch rather than repeated implementation narratives.
 - If `.project/design/` exists, keep design links, flow notes, and annotated asset references aligned with the implementation.
 - Add product-facing changes under the `Unreleased` release sections.
 - Add agent-maintained or implementation-oriented notes under `Unreleased > Codex Log`, even when the project version does not change.

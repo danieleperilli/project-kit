@@ -226,7 +226,27 @@ This keeps the daily workflow narrow:
 - `feature create` starts the next discovery brief;
 - `feature update` resolves decisions and defines one current batch and its change contract;
 - `feature check` blocks implementation until the brief is genuinely ready;
-- `feature list` shows the current brief inventory and each readiness status.
+- `feature list` shows valid discovery/ready briefs. Use `feature list --all` to include archived records and invalid-state diagnostics.
+
+Close or supersede a brief without moving its file:
+
+```bash
+project-kit feature update --slug user-authentication --status archived --archive-reason "Delivered and reviewed" --current-reference ".project/architecture.md"
+project-kit feature list --all
+project-kit feature update --slug user-authentication --status discovery
+```
+
+Archival requires a reason; a current reference is optional when there is no successor. It preserves the file path and earlier approval, but `feature check` rejects archived records. Reopening explicitly starts in discovery, clears the current batch and approval, and retains their provenance under Previous batches. Define and approve the new batch before marking it ready.
+
+The generated active and archived index regions contain only valid matching records. Missing or unknown states produce diagnostics and never become discovery implicitly. New indexes use stable HTML comment markers; updates preserve editorial content outside them. On the first update of an old index, the CLI adopts direct feature links in its existing generated section and preserves the surrounding notes. An index without that section is extended, not replaced.
+
+## Current Context And History
+
+Overview, architecture and constraints own current truth; an active brief owns one approved batch. Read their relevant sections before loading historical records. Keep one concise final review receipt per batch and update the active brief during rework instead of appending an execution diary.
+
+The decision entry point links monthly `.project/history/decisions/YYYY-MM.md` records, created only when needed. Record accepted durable rule changes, continue established IDs across months, and preserve original text, headings and references. Current owners link to their decision evidence rather than duplicating the history.
+
+Existing projects adopt this organization explicitly. Keep a monolithic decision log in place to preserve its anchors and link subsequent periods from it. Ordinary `align` preserves existing documents; `--force` is an overwrite option, not a migration. Historical briefs may stay at their original paths and become archived after their disposition is verified. No installed project is rewritten by upgrading Project Kit.
 
 ## End-to-End Demo
 
